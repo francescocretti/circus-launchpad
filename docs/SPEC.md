@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2); prossimo: M2.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3); prossimo: M3.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -148,7 +148,7 @@ prototipo; **scelta: variante "tinted"** (quella in tabella) (D-21).
 | **Direzione** | `AVANTI` · `REV` | `AVANTI` |
 | **Al ritocco** (pad già in riproduzione) | `STOP` · `RIPARTE` · `IGNORA` | `STOP` se Loop, `IGNORA` se One shot |
 | **Fade in** | 0–10 s, passo 0,5 s | 0 s |
-| **Fade out** (allo stop) | 0–10 s, passo 0,5 s | **3 s** |
+| **Fade out** (allo stop) | 0–10 s, passo 0,5 s | **1 s** |
 | **Normalizza** | on/off | on |
 | **Correzione volume** | −12…+12 dB, passo 0,5 dB | 0 dB |
 | **Etichetta** | testo, max 16 caratteri, maiuscolo | vuota (→ nome file) |
@@ -189,14 +189,17 @@ prototipo; **scelta: variante "tinted"** (quella in tabella) (D-21).
 
 ### 5.3.1 Feedback aptico (D-28)
 
-- **Un colpo secco e breve**, sempre uguale, **a ogni tocco su un pad carico** in PLAY: partenza, ritocco
-  (qualunque sia l'azione) e inizio della pressione lunga. Non vibrano i pad vuoti, la barra e la modalità EDIT.
+- **Un colpo secco e breve**, sempre uguale, **a ogni tocco su un pad carico** in PLAY (partenza, ritocco
+  qualunque sia l'azione, inizio della pressione lunga) e **quando scatta ■ STOP**. Non vibrano i pad vuoti, gli
+  altri pulsanti della barra e la modalità EDIT.
+- Intensità: effetto di sistema `LONG_PRESS` (il "click pesante"). `KEYBOARD_TAP` e `VIRTUAL_KEY`, provati su Pixel 7a, erano troppo leggeri.
+  Nota: questi effetti seguono l'impostazione di sistema "Feedback al tocco": se è disattivata, non vibra.
 - Serve a confermare che **il tocco è stato registrato** anche quando sul palco non si sente il campione.
 - **Prima il suono, poi la vibrazione**: la chiamata aptica parte dopo il trigger audio e non deve mai ritardarlo.
 - Solo impulsi brevi (tipo "tick" di tastiera): niente vibrazioni lunghe che si trasmettono al supporto.
 - **Interruttore generale** `VIBRAZIONE` in EDIT, **attivo di default**. È un'impostazione dell'app, non del set,
   e si salva in `state.json`.
-- Implementazione: `expo-haptics` (effetti Android nativi, es. `Keyboard_Tap`/`Clock_Tick`).
+- Implementazione: `expo-haptics` (`performAndroidHapticsAsync`), in `src/haptics.ts`.
 
 ### 5.4 Tempistica del tocco (decisione tecnica, D-20)
 
@@ -231,17 +234,20 @@ Con il pad in riproduzione, la logica è:
   non si può confondere con PLAY.
 - In EDIT i pad **non si suonano**: si selezionano.
 
-### 7.2 Layout EDIT
+### 7.2 Layout EDIT (D-29)
 
-- **Barra**: badge `EDIT` · selettore `SET` (menu a tendina: set esistenti + `+ NUOVO SET`) ·
-  `ESPORTA` · `IMPORTA` · (spazio) · `FINE ✓`.
-- **Sinistra (~300 dp)**: mini-griglia 4×3 dei pad (colore, numero, etichetta). Tocco = seleziona. Il pad
-  selezionato ha il bordo ambra.
-- **Destra**: pannello del pad selezionato:
-  1. Intestazione: tacca del colore, numero, **campo etichetta**, pulsanti `CARICA` · `▶ ASCOLTA` · `SVUOTA`.
+- **Barra**: badge `EDIT` · selettore `SET` (menu a tendina: set esistenti + `+ NUOVO SET`) · `ESPORTA` ·
+  `IMPORTA` · `VIBRAZIONE ON/OFF` · (spazio) · `FINE ✓`.
+- **Griglia**: la stessa di PLAY, a grandezza reale (così si vede la disposizione vera dei pad), con i bordi ambra.
+  Tocco su un pad = si apre la **finestra del pad**.
+- **Finestra del pad** (modale sopra la griglia, bordo ambra; stile del pannello provvisorio di M2, approvato
+  dall'utente). Si chiude con **`CONFERMA`** (pulsante a contorno ambra, sfondo trasparente: non deve sembrare un
+  badge), con il tasto Indietro o toccando fuori. Contenuto:
+  1. Intestazione: tacca del colore, `PAD 02`, **campo etichetta**, pulsanti `CARICA` · `▶ ASCOLTA` · `SVUOTA` ·
+     `CONFERMA`.
   2. Riga file: `nome_file.ext · durata · frequenza di campionamento · mono/stereo`.
   3. Controlli segmentati: `MODALITÀ` (ONE SHOT/LOOP) · `DIREZIONE` (AVANTI/◂ REV) · `AL RITOCCO` (STOP/RIPARTE/IGNORA).
-  4. Stepper `FADE IN` e `FADE OUT` (− valore +).
+  4. Stepper `FADE IN` e `FADE OUT` (− valore +, passo 0,5 s).
   5. Riquadro `VOLUME`: loudness misurata (`−24,1 LUFS`), guadagno di normalizzazione (`+6,1 dB`),
      eventuale avviso `limitato dal picco (−2,3 dB)`, interruttore `NORMALIZZA`, cursore `CORREZIONE`
      ±12 dB, riga riassuntiva "Obiettivo −18 LUFS · tetto −1 dBTP · totale applicato +X dB".
@@ -516,6 +522,15 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
   −23/−33 dBFS, gating relativo e assoluto, file brevi, silenzio, true peak) più il calcolo del guadagno.
 - Non ancora verificati sul dispositivo: `PadEngine` (si verifica con M2, che lo usa).
 
+### 15.3 Stato M2 (2026-10-27)
+
+- Schermata PLAY provata dall'utente su Pixel 7a: stati dei pad, LED, fade-out lampeggiante, IGNORA/RIPARTE/STOP,
+  pressione lunga, ■ STOP, multi-touch, spazi morti, tasto Indietro, schermo intero, keep-awake: tutto ok.
+- Correzioni dopo la prova: fade out di default 1 s; vibrazione `LONG_PRESS` anche su ■ STOP; pulsante `CONFERMA`.
+- `src/edit/DevPadSheet.tsx` è il **pannello provvisorio** per caricare i pad: M3 lo sostituisce con la finestra
+  del pad di §7.2. Nessuna persistenza: chiudendo l'app i pad si svuotano.
+- Indicatore dell'uscita audio non ancora presente (arriva con il modulo nativo, M5).
+
 ## 16. Punti aperti
 
 | # | Questione | Default attuale |
@@ -550,7 +565,7 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-08 | Modalità One shot/Loop e direzione Avanti/Reverse sono indipendenti (il loop in reverse esiste). |
 | D-09 | "Al ritocco" scelto per pad (Stop/Riparte/Ignora): default Stop per i loop, Ignora per i one shot. Pressione lunga = stop su qualunque pad. |
 | D-10 | Reverse come impostazione fissa del pad, scelta in EDIT. Non è un comando dal vivo. |
-| D-11 | Fade out per pad (default 3 s, 0–10 s). Fade in per pad (default 0 s). STOP sempre rapido, ignora i fade. |
+| D-11 | Fade out per pad (default **1 s**, 0–10 s; era 3 s, cambiato dopo la prova di M2). Fade in per pad (default 0 s). STOP sempre rapido, ignora i fade. |
 | D-12 | Niente colonna laterale: una barra superiore sottile con nome, set, uscita, EDIT e STOP. |
 | D-13 | Sul pad: etichetta personalizzata grande e nome del file piccolo. |
 | D-14 | Tempo: durata a riposo, rimanente in riproduzione, `∞ ×n` in loop. Più barra di avanzamento. |
@@ -566,5 +581,6 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-24 | Distribuzione via APK, niente Play Store per ora. |
 | D-25 | L'indicatore dell'uscita audio usa un modulo nativo locale in Kotlin, perché la libreria audio su Android non espone l'uscita attuale. |
 | D-27 | Dissolvenza ben visibile: LED che lampeggia a circa 2 Hz più la scritta `FADING OUT…` al posto del tempo, oltre al colore che si spegne. Niente conto alla rovescia, niente righe diagonali. |
-| D-28 | Feedback aptico: un colpo secco uguale a ogni tocco su un pad carico in PLAY. Interruttore generale in EDIT, attivo di default. |
+| D-28 | Feedback aptico: un colpo secco uguale a ogni tocco su un pad carico in PLAY e allo scatto di STOP. Intensità `LONG_PRESS`. Interruttore generale in EDIT, attivo di default. |
+| D-29 | EDIT: la griglia resta a grandezza reale e un tocco su un pad apre una finestra con le sue impostazioni (non la mini-griglia con pannello fisso del prototipo). |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |

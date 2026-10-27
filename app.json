@@ -36,14 +36,17 @@
         {
           "android": {
             "minSdkVersion": 31,
-            "buildArchs": ["arm64-v8a"],
+            "buildArchs": [
+              "arm64-v8a"
+            ],
             "enableMinifyInReleaseBuilds": false,
             "enableShrinkResourcesInReleaseBuilds": false
           }
         }
       ],
       "./plugins/withApkName",
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "expo-font"
     ]
   }
 }

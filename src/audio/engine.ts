@@ -34,7 +34,7 @@ interface Slot {
   voice: Voice | null;
 }
 
-const DEFAULT_SETTINGS: PadSettings = { loop: false, reverse: false, fadeInSec: 0, fadeOutSec: 3, gainDb: 0 };
+const DEFAULT_SETTINGS: PadSettings = { loop: false, reverse: false, fadeInSec: 0, fadeOutSec: 1, gainDb: 0 };
 const GAIN_SMOOTHING = 0.02; // costante di tempo per i cambi di volume a voce attiva
 
 export class PadEngine {
