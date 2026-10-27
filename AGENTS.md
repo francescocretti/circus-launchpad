@@ -1,3 +1,15 @@
+# Circus Launchpad
+
+Sample launcher Android per uso dal vivo (12 pad, one shot / loop / reverse). **Leggi prima
+[`docs/SPEC.md`](docs/SPEC.md)**: è la fonte di verità per prodotto, design, architettura, piano di sviluppo
+(milestone M0…M5) e punti aperti. Se il codice e la spec divergono, chiedi all'utente quale aggiornare.
+
+- Lingua con l'utente: italiano. Commenti nel codice: italiano (come nel progetto gemello `../tessere`).
+- Solo Android (API 31+, arm64). Dispositivo di riferimento: Pixel 7a in orizzontale.
+- Audio: `react-native-audio-api` → serve una build nativa (`npx expo run:android`), non Expo Go.
+- APK di release: `npm run apk` → `circus-launchpad-release.apk`. Firma: proprietà `CIRCUS_*` in
+  `~/.gradle/gradle.properties` (vedi spec §14.5). Non usare mai il keystore di Tessere.
+
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
 ## Expo has changed — do not trust your training data
@@ -25,9 +37,7 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+This project does **not** use Expo Router: it is a single screen with two modes (PLAY/EDIT), see `docs/SPEC.md` §14.1.
 
 ## Building with EAS
 
