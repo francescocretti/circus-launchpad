@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.1 — specifiche approvate dall'utente il 2026-10-27, sviluppo non ancora iniziato.
+> **Stato:** v0.2 — specifiche approvate il 2026-10-27; **M0 (test tecnico) superato**, vedi §15.1.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -121,11 +121,13 @@ effetti, registrazione.
 | **A riposo** | colore del pad al 20% su `#1c1a18` | crema `#efe6d6`, numero nel colore del pad | durata totale `1:24` | nascosta | spento |
 | **In riproduzione (one shot)** | colore pieno + bordo 2 dp e alone del colore | scuro `#17130f` | **tempo rimanente** `-0:37` | si riempie | rosso acceso |
 | **In riproduzione (loop)** | come sopra | scuro | `∞ ×3` (ripetizione corrente) | posizione nel ciclo | rosso acceso |
-| **In dissolvenza** | dal colore pieno verso il riposo, proporzionale al fade | scuro → crema | `FADE` | si svuota | rosso tenue |
+| **In dissolvenza** | dal colore pieno verso il riposo, proporzionale al fade | scuro → crema | **`FADING OUT…`** | si svuota | **rosso lampeggiante** (~2 Hz: 250 ms acceso / 250 ms spento) |
 | **Pressione lunga in corso** | overlay scuro `■ STOP` + barra rossa che si riempie in 0,7 s | | | | |
 | **Ritocco ignorato** | overlay per 1,4 s: `TIENI PREMUTO PER FERMARE` | | | | |
 
-(D-14)
+(D-14, D-27)
+
+Il fade-out deve essere riconoscibile **con la coda dell'occhio**: il LED lampeggiante è il segnale principale, la scritta lo conferma (D-27).
 
 Variante alternativa "band" (pad grigio `#24211e` con striscia colorata di 6 dp in alto) disponibile nel
 prototipo; **scelta: variante "tinted"** (quella in tabella) (D-21).
@@ -338,8 +340,10 @@ L'app:
   per le uscite cablate, ambra per l'altoparlante e rosso per il Bluetooth;
 - se l'uscita è **Bluetooth**, mostra un **avviso** persistente nella barra ("latenza alta");
 - se l'uscita **cambia durante l'uso** (es. si stacca il cavo), lo segnala in modo evidente. **Non ferma** l'audio;
-- fonte dati: `AudioManager.getDevicesInfo()` e l'evento `routeChange` di `react-native-audio-api`
-  (da verificare in M0 su Android).
+- fonte dati: **modulo nativo locale** (Expo module in Kotlin, `modules/`) con `AudioManager.getDevices` +
+  `AudioDeviceCallback`; su API 33+ `getAudioDevicesForAttributes(USAGE_MEDIA)` per l'uscita effettiva, sotto
+  API 33 euristica di priorità (USB > cablata > Bluetooth > altoparlante). `react-native-audio-api` **non basta**:
+  su Android `currentOutputs` è sempre vuoto e `routeChange` non viene emesso (verificato in M0, D-25).
 
 ## 12. Protezioni dal vivo
 
@@ -470,6 +474,21 @@ secondo telefono che filma in slow motion (240 fps ≈ 4 ms per fotogramma) il d
 che registra contemporaneamente il "tap" fisico e il click in uscita. Si contano fotogrammi o campioni tra il
 contatto e il suono. Su 10 prove si riportano media e massimo.
 
+### 15.1 Risultati M0 (2026-10-27, Pixel 7a, build release)
+
+- **Percorso audio**: AAudio **MMAP esclusivo**, 48 kHz float, burst 48 frame (1 ms), offset HW 3 ms
+  (`dumpsys media.aaudio`). Latenza percepita dall'utente: "eccellente". Misura strumentale facoltativa.
+- **Formati**: WAV 24 bit, MP3, M4A/AAC, FLAC, OGG Vorbis → tutti decodificati e riprodotti.
+- **Loop** senza stacchi (sinusoide di 2 s esatti, anche in reverse). **Reverse**, **fade in/out**, **stop**: ok.
+- **Multi-touch**: un'unica superficie con `onTouchStart` + `changedTouches` + hit-test → due pad nello stesso
+  istante partono sempre (soluzione 1 di §14.4, adottata: D-26).
+- **Tempi su file WAV stereo 4:53**: decodifica 246 ms · reverse 345 ms · LUFS 2744 ms (JS/Hermes). Accettabile
+  una tantum con barra di avanzamento; ottimizzazione nativa solo se servirà.
+- **LUFS**: l'implementazione JS coincide con `ffmpeg ebur128` entro 0,05 LU su 6 file (−11,9 su device).
+- **Uscita audio**: `getDevicesInfo().currentOutputs` sempre vuoto su Android → modulo nativo (§11, D-25).
+- Il codice del test è in `App.tsx` e `src/audio/` (engine e loudness sono la base di M1). `App.tsx` verrà
+  sostituito in M2.
+
 ## 16. Punti aperti
 
 | # | Questione | Default attuale |
@@ -507,7 +526,7 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-11 | Fade out per pad (default 3 s, 0–10 s). Fade in per pad (default 0 s). STOP sempre rapido, ignora i fade. |
 | D-12 | Niente colonna laterale: una barra superiore sottile con nome, set, uscita, EDIT e STOP. |
 | D-13 | Sul pad: etichetta personalizzata grande e nome del file piccolo. |
-| D-14 | Tempo: durata a riposo, rimanente in riproduzione, `∞ ×n` in loop, `FADE` in dissolvenza. Più barra di avanzamento. |
+| D-14 | Tempo: durata a riposo, rimanente in riproduzione, `∞ ×n` in loop. Più barra di avanzamento. |
 | D-15 | Normalizzazione EBU R128 a −18 LUFS, tetto −1 dBTP, senza limiter, non distruttiva, con correzione ±12 dB e interruttore per pad. |
 | D-16 | STOP piccolo in barra, attivato tenendolo premuto 0,3 s. |
 | D-17 | Protezioni dal vivo: immersive, keep-awake, tasto Indietro ignorato in PLAY, margini morti ai bordi, checklist da palco. |
@@ -518,3 +537,6 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-22 | Salvataggio automatico, set multipli (cambiabili solo in EDIT), esportazione/importazione `.circus`. |
 | D-23 | Stack: React Native + Expo, `react-native-audio-api`. Il test tecnico M0 viene prima di tutto il resto. |
 | D-24 | Distribuzione via APK, niente Play Store per ora. |
+| D-25 | L'indicatore dell'uscita audio usa un modulo nativo locale in Kotlin, perché la libreria audio su Android non espone l'uscita attuale. |
+| D-27 | Dissolvenza ben visibile: LED che lampeggia a circa 2 Hz più la scritta `FADING OUT…` al posto del tempo, oltre al colore che si spegne. Niente conto alla rovescia, niente righe diagonali. |
+| D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |
