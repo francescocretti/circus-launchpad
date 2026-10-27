@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3); prossimo: M3.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4); prossimo: M4.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -147,8 +147,8 @@ prototipo; **scelta: variante "tinted"** (quella in tabella) (D-21).
 | **Modalità** | `ONE SHOT` · `LOOP` | `ONE SHOT` |
 | **Direzione** | `AVANTI` · `REV` | `AVANTI` |
 | **Al ritocco** (pad già in riproduzione) | `STOP` · `RIPARTE` · `IGNORA` | `STOP` se Loop, `IGNORA` se One shot |
-| **Fade in** | 0–10 s, passo 0,5 s | 0 s |
-| **Fade out** (allo stop) | 0–10 s, passo 0,5 s | **1 s** |
+| **Fade in** | `OFF` · 1 · 3 · 5 · 7 s | OFF |
+| **Fade out** (allo stop) | `OFF` · 1 · 3 · 5 · 7 s | **1 s** |
 | **Normalizza** | on/off | on |
 | **Correzione volume** | −12…+12 dB, passo 0,5 dB | 0 dB |
 | **Etichetta** | testo, max 16 caratteri, maiuscolo | vuota (→ nome file) |
@@ -247,7 +247,7 @@ Con il pad in riproduzione, la logica è:
      `CONFERMA`.
   2. Riga file: `nome_file.ext · durata · frequenza di campionamento · mono/stereo`.
   3. Controlli segmentati: `MODALITÀ` (ONE SHOT/LOOP) · `DIREZIONE` (AVANTI/◂ REV) · `AL RITOCCO` (STOP/RIPARTE/IGNORA).
-  4. Stepper `FADE IN` e `FADE OUT` (− valore +, passo 0,5 s).
+  4. Controlli segmentati `FADE IN` e `FADE OUT`: `OFF` · `1 s` · `3 s` · `5 s` · `7 s` (D-30).
   5. Riquadro `VOLUME`: loudness misurata (`−24,1 LUFS`), guadagno di normalizzazione (`+6,1 dB`),
      eventuale avviso `limitato dal picco (−2,3 dB)`, interruttore `NORMALIZZA`, cursore `CORREZIONE`
      ±12 dB, riga riassuntiva "Obiettivo −18 LUFS · tetto −1 dBTP · totale applicato +X dB".
@@ -531,6 +531,20 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
   del pad di §7.2. Nessuna persistenza: chiudendo l'app i pad si svuotano.
 - Indicatore dell'uscita audio non ancora presente (arriva con il modulo nativo, M5).
 
+### 15.4 Stato M3 (2026-10-27)
+
+- `src/edit/PadSheet.tsx`: finestra del pad (§7.2) con etichetta, CARICA/SOSTITUISCI, ASCOLTA/FERMA, SVUOTA con
+  conferma ("SICURO?" per 3 s), CONFERMA; modalità, direzione, ritocco; fade a valori predefiniti (D-30); VOLUME con
+  LUFS, normalizzazione, "limitato dal picco", interruttore, cursore di correzione (`src/edit/Slider.tsx`) e totale;
+  avvisi di memoria (§8).
+- `src/model/storage.ts`: copia dei sample in `documenti/samples/<sha256>.<ext>`, set in `documenti/sets/<id>.json`
+  e stato in `documenti/state.json`, con scrittura atomica (tmp + rinomina con sovrascrittura).
+- `src/model/usePadSet.ts`: carica l'ultimo set all'avvio (`CARICAMENTO… n/N` in barra, un pad alla volta),
+  salvataggio automatico raggruppato in 300 ms, vibrazione ON/OFF salvata. Un file mancante segna il pad `ERRORE`.
+- Un solo set, "SET 1": set multipli, rinomina ed esportazione arrivano in M4.
+- Nota di distribuzione: Play Protect chiede conferma all'installazione dell'APK (firma di debug, fuori store).
+  Da spiegare nelle istruzioni per la band (M5).
+
 ## 16. Punti aperti
 
 | # | Questione | Default attuale |
@@ -565,7 +579,7 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-08 | Modalità One shot/Loop e direzione Avanti/Reverse sono indipendenti (il loop in reverse esiste). |
 | D-09 | "Al ritocco" scelto per pad (Stop/Riparte/Ignora): default Stop per i loop, Ignora per i one shot. Pressione lunga = stop su qualunque pad. |
 | D-10 | Reverse come impostazione fissa del pad, scelta in EDIT. Non è un comando dal vivo. |
-| D-11 | Fade out per pad (default **1 s**, 0–10 s; era 3 s, cambiato dopo la prova di M2). Fade in per pad (default 0 s). STOP sempre rapido, ignora i fade. |
+| D-11 | Fade out per pad (default **1 s**; era 3 s, cambiato dopo la prova di M2). Fade in per pad (default 0 s). STOP sempre rapido, ignora i fade. |
 | D-12 | Niente colonna laterale: una barra superiore sottile con nome, set, uscita, EDIT e STOP. |
 | D-13 | Sul pad: etichetta personalizzata grande e nome del file piccolo. |
 | D-14 | Tempo: durata a riposo, rimanente in riproduzione, `∞ ×n` in loop. Più barra di avanzamento. |
@@ -583,4 +597,5 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-27 | Dissolvenza ben visibile: LED che lampeggia a circa 2 Hz più la scritta `FADING OUT…` al posto del tempo, oltre al colore che si spegne. Niente conto alla rovescia, niente righe diagonali. |
 | D-28 | Feedback aptico: un colpo secco uguale a ogni tocco su un pad carico in PLAY e allo scatto di STOP. Intensità `LONG_PRESS`. Interruttore generale in EDIT, attivo di default. |
 | D-29 | EDIT: la griglia resta a grandezza reale e un tocco su un pad apre una finestra con le sue impostazioni (non la mini-griglia con pannello fisso del prototipo). |
+| D-30 | Fade in/out a valori predefiniti OFF/1/3/5/7 s, scelti con un tocco: i − e + erano scomodi; slider e scorrimento sulla casella sono stati scartati (impreciso il primo, gesto nascosto il secondo). Lo 0 si legge `OFF`, non con un bordo rosso: il rosso significa stop o errore. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |

@@ -9,6 +9,8 @@ interface Props {
   editing: boolean;
   setName: string;
   activeCount: number;
+  /** Avanzamento della decodifica all'avvio (spec §8), null quando tutti i pad sono pronti. */
+  startup: { done: number; total: number } | null;
   haptics: boolean;
   onToggleHaptics: () => void;
   onEdit: () => void;
@@ -16,7 +18,7 @@ interface Props {
   onStopAll: () => void;
 }
 
-export function TopBar({ editing, setName, activeCount, haptics, onToggleHaptics, onEdit, onDone, onStopAll }: Props) {
+export function TopBar({ editing, setName, activeCount, startup, haptics, onToggleHaptics, onEdit, onDone, onStopAll }: Props) {
   return (
     <View style={styles.bar}>
       {editing ? (
@@ -37,6 +39,11 @@ export function TopBar({ editing, setName, activeCount, haptics, onToggleHaptics
         <Text style={styles.setName}>{setName}</Text>
       </View>
       <View style={{ flex: 1 }} />
+      {startup && (
+        <Text style={[styles.muted, { color: colors.edit }]}>
+          CARICAMENTO… {startup.done}/{startup.total}
+        </Text>
+      )}
       {editing ? (
         <>
           <Pressable onPress={onToggleHaptics} style={styles.outlineBtn} accessibilityRole="switch" accessibilityState={{ checked: haptics }}>

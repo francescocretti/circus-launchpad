@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { PadSnapshot } from '../audio/engine';
 import { PadConfig, padTitle } from '../model/pads';
+import type { PadStatus } from '../model/usePadSet';
 import { colors, fonts, mix, PAD_COLORS, restColor } from '../theme';
 
 export interface PadViewProps {
@@ -13,7 +14,7 @@ export interface PadViewProps {
   hint: boolean;
   blinkOn: boolean;
   editing: boolean;
-  status?: string; // messaggio di caricamento o errore
+  status?: PadStatus; // caricamento in corso o errore
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -29,7 +30,7 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
           <Text style={[styles.num, { color: colors.textDisabled }]}>{num}</Text>
           <View style={[styles.swatch, { backgroundColor: color }]} />
         </View>
-        <Text style={[styles.label, styles.emptyLabel]}>{status ?? 'EMPTY'}</Text>
+        <Text style={[styles.label, styles.emptyLabel]}>{status?.message ?? 'EMPTY'}</Text>
         <Text style={[styles.file, { color: colors.textDisabled }]}>
           {editing ? 'tocca per caricare' : 'carica in EDIT'}
         </Text>
@@ -55,6 +56,7 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
     }
   }
   const ledOn = playing || (fading && blinkOn);
+  if (status) time = status.kind === 'error' ? 'ERRORE' : status.message;
 
   return (
     <View
@@ -62,6 +64,8 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
         styles.pad,
         { backgroundColor: mix(restColor(color), color, intensity) },
         playing ? { borderColor: color, boxShadow: `0 0 22px ${color}66` } : styles.restShadow,
+        status?.kind === 'busy' && { opacity: 0.55 },
+        status?.kind === 'error' && { borderColor: colors.danger },
       ]}
     >
       <View style={styles.topRow}>
@@ -82,7 +86,15 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
         <Text style={[styles.file, { color: lit ? colors.inkMuted : colors.textMuted }]} numberOfLines={1}>
           {pad.sample.fileName}
         </Text>
-        <Text style={[styles.time, { color: lit ? colors.ink : colors.text }]}>{time}</Text>
+        <Text
+          style={[
+            styles.time,
+            { color: lit ? colors.ink : colors.text },
+            status && { fontSize: 11, color: status.kind === 'error' ? colors.danger : colors.textMuted },
+          ]}
+        >
+          {time}
+        </Text>
       </View>
       {(playing || fading) && (
         <View style={[styles.track, lit && { backgroundColor: 'rgba(23,19,15,0.18)' }]}>

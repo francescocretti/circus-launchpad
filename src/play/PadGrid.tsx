@@ -3,7 +3,7 @@
 import { ComponentRef, useEffect, useRef, useState } from 'react';
 import { GestureResponderEvent, StyleSheet, View } from 'react-native';
 import { PadSnapshot } from '../audio/engine';
-import { LoadState, engine } from '../model/usePads';
+import { engine, PadStatus } from '../model/usePadSet';
 import { PAD_COUNT, PadConfig } from '../model/pads';
 import { tap } from '../haptics';
 import { layout } from '../theme';
@@ -14,7 +14,7 @@ interface Props {
   pads: PadConfig[];
   editing: boolean;
   haptics: boolean;
-  loadState: LoadState | null;
+  statuses: Record<number, PadStatus>;
   onSelect: (slot: number) => void;
 }
 
@@ -54,7 +54,7 @@ function computeFrame(touches: Map<number, ActiveTouch>, hints: Map<number, numb
   };
 }
 
-export function PadGrid({ pads, editing, haptics, loadState, onSelect }: Props) {
+export function PadGrid({ pads, editing, haptics, statuses, onSelect }: Props) {
   const ref = useRef<ComponentRef<typeof View>>(null);
   const rect = useRef({ x: 0, y: 0, w: 1, h: 1 });
   const touches = useRef(new Map<number, ActiveTouch>());
@@ -164,7 +164,7 @@ export function PadGrid({ pads, editing, haptics, loadState, onSelect }: Props) 
                   hint={frame.hints[i]}
                   blinkOn={frame.blinkOn}
                   editing={editing}
-                  status={loadState?.slot === pad.slot ? loadState.message : undefined}
+                  status={statuses[pad.slot]}
                 />
               </View>
             );

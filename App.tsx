@@ -5,13 +5,13 @@ import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
-import { DevPadSheet } from './src/edit/DevPadSheet';
-import { engine, usePads } from './src/model/usePads';
+import { PadSheet } from './src/edit/PadSheet';
+import { tap } from './src/haptics';
+import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
 import { TopBar } from './src/play/TopBar';
-import { tap } from './src/haptics';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -23,10 +23,9 @@ export default function App() {
     IBMPlexMono_500Medium,
     IBMPlexMono_600SemiBold,
   });
-  const { pads, update, load, clear, loadState } = usePads();
+  const { set, statuses, startup, haptics, setHaptics, update, load, clear } = usePadSet();
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
-  const [haptics, setHaptics] = useState(true);
   const [activeCount, setActiveCount] = useState(0);
 
   useEffect(() => engine.subscribe(() => setActiveCount(engine.activeCount())), []);
@@ -40,7 +39,17 @@ export default function App() {
     return () => sub.remove();
   }, [editing]);
 
-  if (!fontsLoaded) return <View style={styles.root} />;
+  // Memoria occupata dai sample decodificati (float32), raddoppiata per i pad in reverse (spec §8).
+  const setMemoryMB = useMemo(
+    () =>
+      (set?.pads ?? []).reduce((mb, p) => {
+        const s = p.sample;
+        return s ? mb + (s.durationSec * s.sampleRate * s.channels * 4 * (p.reverse ? 2 : 1)) / 1e6 : mb;
+      }, 0),
+    [set],
+  );
+
+  if (!fontsLoaded || !set) return <View style={styles.root} />;
 
   return (
     <View style={[styles.root, editing && styles.editing]}>
@@ -48,10 +57,11 @@ export default function App() {
       <NavigationBar hidden />
       <TopBar
         editing={editing}
-        setName="PROVA"
+        setName={set.name}
         activeCount={activeCount}
+        startup={startup}
         haptics={haptics}
-        onToggleHaptics={() => setHaptics((h) => !h)}
+        onToggleHaptics={() => setHaptics(!haptics)}
         onEdit={() => setEditing(true)}
         onDone={() => setEditing(false)}
         onStopAll={() => {
@@ -59,9 +69,11 @@ export default function App() {
           tap(haptics);
         }}
       />
-      <PadGrid pads={pads} editing={editing} haptics={haptics} loadState={loadState} onSelect={setSelected} />
-      <DevPadSheet
-        pad={selected === null ? null : pads[selected - 1]}
+      <PadGrid pads={set.pads} editing={editing} haptics={haptics} statuses={statuses} onSelect={setSelected} />
+      <PadSheet
+        pad={selected === null ? null : set.pads[selected - 1]}
+        status={selected === null ? undefined : statuses[selected]}
+        setMemoryMB={setMemoryMB}
         onClose={() => setSelected(null)}
         onLoad={load}
         onUpdate={update}
