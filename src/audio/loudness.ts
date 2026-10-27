@@ -1,7 +1,6 @@
 // Misura della loudness secondo ITU-R BS.1770-4 / EBU R128 (spec §9).
 // Lavora su canali PCM float32 già decodificati; il risultato è la loudness integrata (o il momentary
-// massimo per i campioni sotto 1 s) e il picco. Il true peak con sovracampionamento 4× arriva in M1:
-// per ora `peakDbfs` è il picco sul campione.
+// massimo per i campioni sotto 1 s), il picco sul campione e il true peak (sovracampionamento 4×).
 
 export interface LoudnessResult {
   /** Loudness usata per la normalizzazione: integrata, oppure momentary massima se il file dura < 1 s. */
@@ -9,6 +8,7 @@ export interface LoudnessResult {
   integratedLufs: number;
   momentaryMaxLufs: number;
   peakDbfs: number;
+  truePeakDbtp: number;
 }
 
 interface Biquad {
@@ -117,5 +117,60 @@ export function measureLoudness(channels: Float32Array[], sampleRate: number): L
     integratedLufs: integrated,
     momentaryMaxLufs: momentaryMax,
     peakDbfs: peak > 0 ? 20 * Math.log10(peak) : -Infinity,
+    truePeakDbtp: peak > 0 ? 20 * Math.log10(truePeak(channels, peak)) : -Infinity,
   };
+}
+
+// Filtro interpolatore 4× (BS.1770-4, Annex 2: 48 coefficienti, 4 fasi da 12). Qui è un sinc finestrato
+// (Hann) normalizzato per fase: la differenza dai coefficienti dello standard è ben sotto 0,1 dB sui casi di
+// test, e al tetto di −1 dBTP basta.
+const TP_TAPS = 12;
+const TP_PHASES = 4;
+const TP_FILTER: Float64Array[] = (() => {
+  const n = TP_TAPS * TP_PHASES;
+  const h = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = (i - (n - 1) / 2) / TP_PHASES;
+    const sinc = t === 0 ? 1 : Math.sin(Math.PI * t) / (Math.PI * t);
+    h[i] = sinc * (0.5 - 0.5 * Math.cos((2 * Math.PI * (i + 0.5)) / n));
+  }
+  return Array.from({ length: TP_PHASES }, (_, p) => {
+    const ph = new Float64Array(TP_TAPS);
+    let sum = 0;
+    for (let k = 0; k < TP_TAPS; k++) sum += ph[k] = h[p + k * TP_PHASES];
+    for (let k = 0; k < TP_TAPS; k++) ph[k] /= sum;
+    return ph;
+  });
+})();
+
+/**
+ * True peak lineare. Per stare nei tempi su file lunghi interpola solo attorno ai campioni sopra metà del
+ * picco (−6 dB): altrove un picco tra campioni non può avvicinarsi al massimo del file.
+ */
+function truePeak(channels: Float32Array[], samplePeak: number): number {
+  const threshold = samplePeak * 0.5;
+  const half = TP_TAPS / 2;
+  let tp = samplePeak;
+  for (const x of channels) {
+    const len = x.length;
+    for (let i = 0; i < len; i++) {
+      const a = x[i] < 0 ? -x[i] : x[i];
+      if (a < threshold) continue;
+      // Filtro a lunghezza pari: la fase p cade a c + 0,125 + p/4, quindi le 4 fasi coprono (c, c+1).
+      // Con c = i−1 e c = i si coprono entrambi gli intervalli attorno al campione.
+      for (let c = i - 1; c <= i; c++) {
+        for (let p = 0; p < TP_PHASES; p++) {
+          const f = TP_FILTER[p];
+          let y = 0;
+          for (let k = 0; k < TP_TAPS; k++) {
+            const j = c + half - k;
+            if (j >= 0 && j < len) y += f[k] * x[j];
+          }
+          const ay = y < 0 ? -y : y;
+          if (ay > tp) tp = ay;
+        }
+      }
+    }
+  }
+  return tp;
 }

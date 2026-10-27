@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.2 — specifiche approvate il 2026-10-27; **M0 (test tecnico) superato**, vedi §15.1.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2); prossimo: M2.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -186,6 +186,17 @@ prototipo; **scelta: variante "tinted"** (quella in tabella) (D-21).
 - Durante la pressione lunga su un pad in riproduzione, dopo 120 ms compare l'overlay `■ STOP` con la
   barra che si riempie: chi tiene premuto vede cosa sta per succedere. Rilasciando prima di 0,7 s si annulla.
 - Nessun menu contestuale, nessun doppio tocco, nessuno swipe in PLAY.
+
+### 5.3.1 Feedback aptico (D-28)
+
+- **Un colpo secco e breve**, sempre uguale, **a ogni tocco su un pad carico** in PLAY: partenza, ritocco
+  (qualunque sia l'azione) e inizio della pressione lunga. Non vibrano i pad vuoti, la barra e la modalità EDIT.
+- Serve a confermare che **il tocco è stato registrato** anche quando sul palco non si sente il campione.
+- **Prima il suono, poi la vibrazione**: la chiamata aptica parte dopo il trigger audio e non deve mai ritardarlo.
+- Solo impulsi brevi (tipo "tick" di tastiera): niente vibrazioni lunghe che si trasmettono al supporto.
+- **Interruttore generale** `VIBRAZIONE` in EDIT, **attivo di default**. È un'impostazione dell'app, non del set,
+  e si salva in `state.json`.
+- Implementazione: `expo-haptics` (effetti Android nativi, es. `Keyboard_Tap`/`Clock_Tick`).
 
 ### 5.4 Tempistica del tocco (decisione tecnica, D-20)
 
@@ -410,7 +421,7 @@ Sfondo a riposo = `mix(padRestBase, colore, 20%)`. In riproduzione = colore pien
   - Plugin configurato **senza foreground service** e senza permessi extra (l'app suona solo in primo piano).
 - Moduli Expo: `expo-document-picker` (selezione file), `expo-file-system` (copia, storage privato),
   `expo-keep-awake`, `expo-screen-orientation`, `expo-build-properties`. Da aggiungere in seguito:
-  `expo-navigation-bar` o equivalente per l'immersive mode, `@expo-google-fonts/barlow-condensed` e
+  `expo-haptics` (§5.3.1), `expo-navigation-bar` o equivalente per l'immersive mode, `@expo-google-fonts/barlow-condensed` e
   `@expo-google-fonts/ibm-plex-mono`, `expo-sharing` (esportazione), una libreria ZIP (da scegliere).
 - Niente Expo Router: l'app ha una sola schermata con due modalità (PLAY/EDIT) più eventuali modali.
   (L'`AGENTS.md` generato dal template parla di Expo Router: qui non si applica.)
@@ -464,7 +475,7 @@ M0 deve dimostrare che due pad toccati insieme partono entrambi.
 |------|-----------|--------------------|
 | **M0 — Test tecnico** | App minimale su Pixel 7a: carica un file dal telefono; one shot, loop, reverse, loop in reverse; fade in/out sul clock audio; 2 pad in multi-touch simultaneo; misura della latenza; misura dei tempi di decodifica e di calcolo LUFS su un file da 3–5 min; lettura dell'uscita audio e dell'evento di cambio uscita. | Tutto funziona sul 7a e la latenza rispetta NF-1. Altrimenti si valuta il piano B (modulo nativo Kotlin su Oboe). |
 | M1 — Motore audio | `src/audio/`: voci, fade, reverse, gain, loudness (BS.1770) con test unitari sul calcolo LUFS (file di riferimento EBU). | Test verdi; LUFS entro ±0,1 LU dai file di riferimento EBU. |
-| M2 — PLAY | Griglia, pad con tutti gli stati, barra, STOP, pressione lunga, immersive, keep-awake, gestione del tasto Indietro. | Comportamento come §4–§6 sul dispositivo. |
+| M2 — PLAY | Griglia, pad con tutti gli stati, barra, STOP, pressione lunga, feedback aptico, immersive, keep-awake, gestione del tasto Indietro. | Comportamento come §4–§6 sul dispositivo. |
 | M3 — EDIT + caricamento | Pannello del pad, caricamento con copia e analisi, persistenza. | §7–§9. |
 | M4 — Set ed esportazione | Set multipli, `.circus` import/export. | §10. |
 | M5 — Rifinitura e release | Icona, font, checklist da palco, indicatore uscita, keystore, prima release. | APK installato sui telefoni della band. |
@@ -488,6 +499,22 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 - **Uscita audio**: `getDevicesInfo().currentOutputs` sempre vuoto su Android → modulo nativo (§11, D-25).
 - Il codice del test è in `App.tsx` e `src/audio/` (engine e loudness sono la base di M1). `App.tsx` verrà
   sostituito in M2.
+
+### 15.2 Stato M1 (2026-10-27)
+
+- `src/audio/voice.ts`: primitive (contesto unico, voce con inviluppo, stop che può solo accorciare un fade in corso,
+  reverse, click di test).
+- `src/audio/engine.ts`: `PadEngine` con 12 slot: `setBuffer`, `configure` (volume subito, il resto dal lancio
+  successivo), `start` (un retrigger chiude la voce precedente con lo stop rapido), `stop(n, {fast})`, `stopAll`,
+  `snapshot(n)` per la UI (fase, posizione, ripetizione, avanzamento del fade), `subscribe`.
+- `src/audio/gain.ts`: normalizzazione −18 LUFS / −1 dBTP, correzione ±12 dB a passi di 0,5.
+- `src/audio/loudness.ts`: BS.1770 con gating e momentary, più **true peak 4×** (sinc finestrato a 48 coefficienti,
+  calcolato solo attorno ai campioni sopra −6 dB dal picco). Coincide con `ffmpeg ebur128=peak=true` entro 0,1 dB sui
+  file di M0. Costo: +40% rispetto alla sola loudness, quindi circa 4 s su Pixel 7a per un file stereo di 5 min.
+- `src/audio/sample.ts`: decodifica e analisi.
+- Test: `npm test` (runner integrato di Node, nessuna dipendenza): 15 casi sul modello di EBU Tech 3341 (sinusoidi a
+  −23/−33 dBFS, gating relativo e assoluto, file brevi, silenzio, true peak) più il calcolo del guadagno.
+- Non ancora verificati sul dispositivo: `PadEngine` (si verifica con M2, che lo usa).
 
 ## 16. Punti aperti
 
@@ -539,4 +566,5 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-24 | Distribuzione via APK, niente Play Store per ora. |
 | D-25 | L'indicatore dell'uscita audio usa un modulo nativo locale in Kotlin, perché la libreria audio su Android non espone l'uscita attuale. |
 | D-27 | Dissolvenza ben visibile: LED che lampeggia a circa 2 Hz più la scritta `FADING OUT…` al posto del tempo, oltre al colore che si spegne. Niente conto alla rovescia, niente righe diagonali. |
+| D-28 | Feedback aptico: un colpo secco uguale a ogni tocco su un pad carico in PLAY. Interruttore generale in EDIT, attivo di default. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |

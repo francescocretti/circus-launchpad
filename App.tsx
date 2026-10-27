@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ComponentRef, useEffect, useRef, useState } from 'react';
 import { GestureResponderEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioBuffer, AudioManager } from 'react-native-audio-api';
-import { audioContext, clickBuffer, play, reversed, stop, Voice } from './src/audio/engine';
+import { audioContext, clickBuffer, play, reversed, stop, Voice } from './src/audio/voice';
 import { measureLoudness, LoudnessResult } from './src/audio/loudness';
 
 interface PadDef {
@@ -115,7 +115,7 @@ export default function App() {
 
   const trigger = (pad: PadDef) => {
     const current = voices.current[pad.id];
-    const playing = current && !current.stopping;
+    const playing = current && current.fadeStartedAt === null;
     if (pad.click) {
       if (playing) stop(current);
       voices.current[pad.id] = play(clicks.current[pad.id]);
@@ -213,7 +213,7 @@ export default function App() {
             <View key={p.id} pointerEvents="none" style={[styles.pad, active && styles.padOn, disabled && styles.padOff]}>
               <Text style={[styles.padLabel, active && styles.padLabelOn]}>{p.label}</Text>
               <Text style={[styles.mono, active && styles.padLabelOn]}>
-                {v?.stopping ? 'FADE' : active && !p.click ? (v.loop ? `∞ ×${Math.floor(elapsed / v.duration) + 1}` : `-${fmt(v.duration - elapsed)}`) : ''}
+                {v && v.fadeStartedAt !== null ? 'FADE' : active && !p.click ? (v.loop ? `∞ ×${Math.floor(elapsed / v.duration) + 1}` : `-${fmt(v.duration - elapsed)}`) : ''}
               </Text>
               {active && !p.click && (
                 <View style={[styles.bar, { width: `${pct}%` }, p.rev && { left: undefined, right: 0 }]} />

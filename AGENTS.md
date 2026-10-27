@@ -7,6 +7,8 @@ Sample launcher Android per uso dal vivo (12 pad, one shot / loop / reverse). **
 - Lingua con l'utente: italiano. Commenti nel codice: italiano (come nel progetto gemello `../tessere`).
 - Solo Android (API 31+, arm64). Dispositivo di riferimento: Pixel 7a in orizzontale.
 - Audio: `react-native-audio-api` → serve una build nativa (`npx expo run:android`), non Expo Go.
+- Test: `npm test` (runner di Node su `src/**/__tests__/*.test.ts`; negli import dei moduli testati usare
+  l'estensione `.ts`).
 - APK di release: `npm run apk` → `circus-launchpad-release.apk`. Firma: proprietà `CIRCUS_*` in
   `~/.gradle/gradle.properties` (vedi spec §14.5). Non usare mai il keystore di Tessere.
 

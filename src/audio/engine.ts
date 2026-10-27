@@ -1,88 +1,148 @@
-// Motore audio minimo (spec §14.2): un AudioContext per tutta l'app, una voce = BufferSource → Gain di voce
-// (inviluppo dei fade) → destinazione. I fade sono rampe sul clock audio, non timer JS.
-import { AudioBuffer, AudioBufferSourceNode, AudioContext, GainNode } from 'react-native-audio-api';
+// Motore dei pad (spec §5, §14.2). Ogni slot ha il suo buffer (già invertito se il pad è in reverse), un
+// GainNode di pad (normalizzazione + correzione) e al massimo una voce. La UI chiede lo stato con
+// `snapshot()` a ogni frame e si iscrive a `subscribe()` per i cambi di fase (partenza, fine, stop).
+import { AudioBuffer, GainNode } from 'react-native-audio-api';
+import { dbToLinear } from './gain';
+import { audioContext, play, reversed, stop, STOP_RAMP, Voice } from './voice';
 
-const START_RAMP = 0.005; // micro-fade anti-click all'avvio (spec §5.2)
-const STOP_RAMP = 0.02; // stop rapido
+export type PadPhase = 'idle' | 'playing' | 'fading';
 
-export interface Voice {
-  source: AudioBufferSourceNode;
-  gain: GainNode;
-  startedAt: number; // currentTime del contesto
-  duration: number;
+export interface PadSettings {
   loop: boolean;
-  stopping: boolean;
+  reverse: boolean;
+  fadeInSec: number;
+  fadeOutSec: number;
+  gainDb: number;
 }
 
-export interface PlayOptions {
-  loop?: boolean;
-  fadeIn?: number;
-  gainDb?: number;
-  onEnded?: () => void;
+export interface PadSnapshot {
+  phase: PadPhase;
+  duration: number;
+  /** Secondi dall'inizio del buffer (per i loop, posizione nel ciclo). */
+  position: number;
+  /** Ripetizione corrente, da 1 (solo loop). */
+  loopCount: number;
+  /** 0 → 1 durante la dissolvenza di uscita. */
+  fadeProgress: number;
 }
 
-let ctx: AudioContext | null = null;
-
-export function audioContext(): AudioContext {
-  if (!ctx) ctx = new AudioContext();
-  return ctx;
+interface Slot {
+  forward: AudioBuffer | null;
+  backward: AudioBuffer | null; // creato al primo uso del reverse e tenuto finché il buffer non cambia
+  settings: PadSettings;
+  padGain: GainNode;
+  voice: Voice | null;
 }
 
-export function play(buffer: AudioBuffer, opts: PlayOptions = {}): Voice {
-  const c = audioContext();
-  const now = c.currentTime;
-  const level = Math.pow(10, (opts.gainDb ?? 0) / 20);
+const DEFAULT_SETTINGS: PadSettings = { loop: false, reverse: false, fadeInSec: 0, fadeOutSec: 3, gainDb: 0 };
+const GAIN_SMOOTHING = 0.02; // costante di tempo per i cambi di volume a voce attiva
 
-  const gain = c.createGain();
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(level, now + Math.max(START_RAMP, opts.fadeIn ?? 0));
-  gain.connect(c.destination);
+export class PadEngine {
+  private slots = new Map<number, Slot>();
+  private listeners = new Set<(slot: number) => void>();
 
-  const source = c.createBufferSource();
-  source.buffer = buffer;
-  source.loop = !!opts.loop;
-  source.connect(gain);
-  source.onEnded = () => {
-    source.disconnect();
-    gain.disconnect();
-    opts.onEnded?.();
-  };
-  source.start(now);
-
-  return { source, gain, startedAt: now, duration: buffer.duration, loop: !!opts.loop, stopping: false };
-}
-
-export function stop(voice: Voice, fade = STOP_RAMP) {
-  if (voice.stopping) return;
-  voice.stopping = true;
-  const c = audioContext();
-  const now = c.currentTime;
-  const f = Math.max(STOP_RAMP, fade);
-  voice.gain.gain.cancelAndHoldAtTime(now);
-  voice.gain.gain.linearRampToValueAtTime(0, now + f);
-  voice.source.stop(now + f + 0.01);
-}
-
-export function reversed(buffer: AudioBuffer): AudioBuffer {
-  const c = audioContext();
-  const out = c.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-    out.copyToChannel(buffer.getChannelData(ch).slice().reverse(), ch);
+  private slot(n: number): Slot {
+    let s = this.slots.get(n);
+    if (!s) {
+      const c = audioContext();
+      const padGain = c.createGain();
+      padGain.connect(c.destination);
+      s = { forward: null, backward: null, settings: { ...DEFAULT_SETTINGS }, padGain, voice: null };
+      this.slots.set(n, s);
+    }
+    return s;
   }
-  return out;
-}
 
-/** Click secco e breve (sinusoide smorzata) per misurare la latenza tocco → suono. */
-export function clickBuffer(freq: number): AudioBuffer {
-  const c = audioContext();
-  const sr = c.sampleRate;
-  const len = Math.round(sr * 0.06);
-  const buf = c.createBuffer(1, len, sr);
-  const data = new Float32Array(len);
-  for (let i = 0; i < len; i++) {
-    const t = i / sr;
-    data[i] = 0.9 * Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 80);
+  private emit(n: number) {
+    this.listeners.forEach((l) => l(n));
   }
-  buf.copyToChannel(data, 0);
-  return buf;
+
+  subscribe(listener: (slot: number) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  /** Assegna (o toglie, con null) il buffer di uno slot. Una voce in corso si ferma subito. */
+  setBuffer(n: number, buffer: AudioBuffer | null) {
+    const s = this.slot(n);
+    if (s.voice) stop(s.voice);
+    s.forward = buffer;
+    s.backward = null;
+    if (buffer && s.settings.reverse) s.backward = reversed(buffer);
+  }
+
+  /**
+   * Aggiorna le impostazioni. Volume subito; modalità, direzione e fade valgono dal lancio successivo
+   * (spec §7.1).
+   */
+  configure(n: number, patch: Partial<PadSettings>) {
+    const s = this.slot(n);
+    s.settings = { ...s.settings, ...patch };
+    if (s.settings.reverse && s.forward && !s.backward) s.backward = reversed(s.forward);
+    if (patch.gainDb !== undefined) {
+      const c = audioContext();
+      s.padGain.gain.setTargetAtTime(dbToLinear(patch.gainDb), c.currentTime, GAIN_SMOOTHING);
+    }
+  }
+
+  isLoaded(n: number): boolean {
+    return !!this.slots.get(n)?.forward;
+  }
+
+  /** Fa partire il pad dall'inizio; se stava suonando, la voce precedente si chiude con lo stop rapido. */
+  start(n: number) {
+    const s = this.slot(n);
+    const buffer = s.settings.reverse ? s.backward : s.forward;
+    if (!buffer) return;
+    if (s.voice) stop(s.voice);
+    const voice = play(buffer, {
+      loop: s.settings.loop,
+      fadeIn: s.settings.fadeInSec,
+      output: s.padGain,
+      onEnded: (v) => {
+        if (s.voice === v) {
+          s.voice = null;
+          this.emit(n);
+        }
+      },
+    });
+    s.voice = voice;
+    this.emit(n);
+  }
+
+  /** Ferma il pad con il suo fade out, oppure con lo stop rapido (`fast`). */
+  stop(n: number, { fast = false } = {}) {
+    const s = this.slots.get(n);
+    if (!s?.voice) return;
+    stop(s.voice, fast ? STOP_RAMP : s.settings.fadeOutSec);
+    this.emit(n);
+  }
+
+  /** STOP generale: tutte le voci con lo stop rapido, ignorando i fade dei pad (spec §6). */
+  stopAll() {
+    for (const n of this.slots.keys()) this.stop(n, { fast: true });
+  }
+
+  activeCount(): number {
+    let count = 0;
+    for (const s of this.slots.values()) if (s.voice && s.voice.fadeStartedAt === null) count++;
+    return count;
+  }
+
+  snapshot(n: number): PadSnapshot {
+    const s = this.slots.get(n);
+    const duration = s?.forward?.duration ?? 0;
+    const v = s?.voice;
+    if (!v || v.ended) return { phase: 'idle', duration, position: 0, loopCount: 0, fadeProgress: 0 };
+    const now = audioContext().currentTime;
+    const elapsed = Math.max(0, now - v.startedAt);
+    const fading = v.fadeStartedAt !== null;
+    return {
+      phase: fading ? 'fading' : 'playing',
+      duration,
+      position: v.loop ? elapsed % v.duration : Math.min(elapsed, v.duration),
+      loopCount: v.loop ? Math.floor(elapsed / v.duration) + 1 : 1,
+      fadeProgress: fading ? Math.min(1, (now - v.fadeStartedAt!) / v.fadeDuration) : 0,
+    };
+  }
 }
