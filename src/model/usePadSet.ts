@@ -3,17 +3,25 @@
 //   suonabile appena è pronto.
 // - Ogni modifica va subito su PadEngine (volume subito, il resto dal lancio successivo) e su disco
 //   (salvataggio automatico, raggruppato in 300 ms).
+// - Set multipli (spec §10, M4): cambio, creazione, rinomina, duplicazione, eliminazione, esporta/importa .circus.
+import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PadEngine } from '../audio/engine';
 import { appliedGainDb, normalization } from '../audio/gain';
 import { analyzeSample, decodeSample } from '../audio/sample';
-import { defaultRetrigger, emptyPad, PadConfig } from './pads';
+import { defaultRetrigger, emptyPad, PAD_COUNT, PadConfig } from './pads';
 import {
   AppState,
+  collectGarbage,
+  deleteSet as deleteSetFile,
+  exportSet,
   importSample,
+  importSet,
+  listSets,
   loadAppState,
   loadSet,
   newSet,
+  newSetId,
   PadSet,
   sampleExists,
   sampleUri,
@@ -25,6 +33,7 @@ export const engine = new PadEngine();
 
 const DEFAULT_SET_ID = 'default';
 const SAVE_DELAY_MS = 300;
+export const MAX_SET_NAME = 24;
 
 function syncEngine(p: PadConfig) {
   const gainDb = p.sample
@@ -42,11 +51,21 @@ function syncEngine(p: PadConfig) {
 /** Messaggio per pad durante caricamento o in caso di errore; assente quando il pad è pronto. */
 export type PadStatus = { kind: 'busy' | 'error'; message: string };
 
+const loadedSlots = (set: PadSet) => set.pads.filter((p) => p.sample).map((p) => p.slot);
+const busyStatuses = (slots: number[]) =>
+  Object.fromEntries(slots.map((slot) => [slot, { kind: 'busy', message: 'CARICAMENTO…' } as PadStatus]));
+
 function readInitial() {
   const app = loadAppState() ?? { lastSetId: DEFAULT_SET_ID, haptics: true };
-  const set = loadSet(app.lastSetId) ?? newSet(app.lastSetId, 'SET 1');
-  const toLoad = set.pads.filter((p) => p.sample).map((p) => p.slot);
-  return { app, set, toLoad };
+  let set = loadSet(app.lastSetId);
+  if (!set) {
+    // Primo avvio, o ultimo set eliminato a mano: si riparte dal primo set esistente o da uno nuovo.
+    set = listSets()[0] ?? newSet(app.lastSetId, 'SET 1');
+    saveSet(set);
+    app.lastSetId = set.id;
+    saveAppState(app);
+  }
+  return { app, set, toLoad: loadedSlots(set) };
 }
 
 export function usePadSet() {
@@ -54,14 +73,13 @@ export function usePadSet() {
   const [initial] = useState(readInitial);
   const [set, setSet] = useState<PadSet>(initial.set);
   const [app, setApp] = useState<AppState>(initial.app);
-  const [statuses, setStatuses] = useState<Record<number, PadStatus>>(() =>
-    Object.fromEntries(initial.toLoad.map((slot) => [slot, { kind: 'busy', message: 'CARICAMENTO…' } as PadStatus])),
-  );
+  const [statuses, setStatuses] = useState<Record<number, PadStatus>>(() => busyStatuses(initial.toLoad));
   const [startup, setStartup] = useState<{ done: number; total: number } | null>(
     initial.toLoad.length ? { done: 0, total: initial.toLoad.length } : null,
   );
   const setRef = useRef<PadSet>(initial.set);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const generation = useRef(0); // invalida le decodifiche di un set non più attivo
 
   const setStatus = (slot: number, status: PadStatus | null) =>
     setStatuses((s) => {
@@ -78,25 +96,67 @@ export function usePadSet() {
     saveTimer.current = setTimeout(() => saveSet(next), SAVE_DELAY_MS);
   }, []);
 
-  // Avvio: configura il motore e decodifica i sample del set, uno alla volta.
-  useEffect(() => {
-    initial.set.pads.forEach(syncEngine);
-    (async () => {
-      for (const [i, slot] of initial.toLoad.entries()) {
-        const id = initial.set.pads[slot - 1].sample!.id;
-        try {
-          if (!sampleExists(id)) throw new Error('file mancante');
-          const decoded = await decodeSample(sampleUri(id));
-          engine.setBuffer(slot, decoded.buffer);
-          syncEngine(setRef.current.pads[slot - 1]);
-          setStatus(slot, null);
-        } catch {
-          setStatus(slot, { kind: 'error', message: 'ERRORE' });
-        }
-        setStartup(i + 1 < initial.toLoad.length ? { done: i + 1, total: initial.toLoad.length } : null);
+  const flushSave = useCallback(() => {
+    if (!saveTimer.current) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    saveSet(setRef.current);
+  }, []);
+
+  // Decodifica i sample di un set, uno alla volta; si interrompe se nel frattempo si cambia set.
+  const decodeAll = useCallback(async (target: PadSet) => {
+    const gen = ++generation.current;
+    const slots = loadedSlots(target);
+    for (const [i, slot] of slots.entries()) {
+      const id = target.pads[slot - 1].sample!.id;
+      let status: PadStatus | null = null;
+      try {
+        if (!sampleExists(id)) throw new Error('file mancante');
+        const decoded = await decodeSample(sampleUri(id));
+        if (gen !== generation.current) return;
+        engine.setBuffer(slot, decoded.buffer);
+        syncEngine(setRef.current.pads[slot - 1]);
+      } catch {
+        status = { kind: 'error', message: 'ERRORE' };
       }
-    })();
-  }, [initial]);
+      if (gen !== generation.current) return;
+      setStatus(slot, status);
+      setStartup(i + 1 < slots.length ? { done: i + 1, total: slots.length } : null);
+    }
+  }, []);
+
+  // Avvio: pulizia delle copie inutilizzate, poi motore e decodifica.
+  useEffect(() => {
+    collectGarbage();
+    initial.set.pads.forEach(syncEngine);
+    decodeAll(initial.set);
+  }, [initial, decodeAll]);
+
+  const saveLastSet = useCallback((id: string) => {
+    setApp((a) => {
+      const next = { ...a, lastSetId: id };
+      saveAppState(next);
+      return next;
+    });
+  }, []);
+
+  /** Rende attivo un set: ferma l'audio, svuota il motore e decodifica i nuovi sample. */
+  const activate = useCallback(
+    (next: PadSet) => {
+      flushSave();
+      engine.stopAll();
+      for (let slot = 1; slot <= PAD_COUNT; slot++) engine.setBuffer(slot, null);
+      next.pads.forEach(syncEngine);
+      setRef.current = next;
+      setSet(next);
+      const slots = loadedSlots(next);
+      setStatuses(busyStatuses(slots));
+      setStartup(slots.length ? { done: 0, total: slots.length } : null);
+      saveLastSet(next.id);
+      decodeAll(next);
+    },
+    [flushSave, decodeAll, saveLastSet],
+  );
 
   const update = useCallback(
     (slot: number, patch: Partial<PadConfig>) => {
@@ -166,5 +226,82 @@ export function usePadSet() {
     });
   }, []);
 
-  return { set, statuses, startup, haptics: app.haptics, setHaptics, update, load, clear };
+  const sets = useCallback(() => {
+    flushSave();
+    return listSets();
+  }, [flushSave]);
+
+  const switchSet = useCallback(
+    (id: string) => {
+      if (id === setRef.current.id) return;
+      const next = loadSet(id);
+      if (next) activate(next);
+    },
+    [activate],
+  );
+
+  const createSet = useCallback(() => {
+    const names = new Set(listSets().map((x) => x.name));
+    let n = names.size + 1;
+    while (names.has(`SET ${n}`)) n++;
+    const fresh = newSet(newSetId(), `SET ${n}`);
+    saveSet(fresh);
+    activate(fresh);
+  }, [activate]);
+
+  const renameSet = useCallback(
+    (name: string) => commit({ ...setRef.current, name: name.toUpperCase().slice(0, MAX_SET_NAME) }),
+    [commit],
+  );
+
+  const duplicateSet = useCallback(() => {
+    flushSave();
+    const cur = setRef.current;
+    saveSet({ ...cur, id: newSetId(), name: `${cur.name} COPIA`.slice(0, MAX_SET_NAME) });
+  }, [flushSave]);
+
+  /** Elimina il set attivo e passa a un altro. Non si può eliminare l'unico set. */
+  const deleteSet = useCallback(() => {
+    const cur = setRef.current;
+    const others = listSets().filter((x) => x.id !== cur.id);
+    if (others.length === 0) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    deleteSetFile(cur.id);
+    activate(others[0]);
+    collectGarbage();
+  }, [activate]);
+
+  const exportActive = useCallback(async () => {
+    flushSave();
+    const uri = exportSet(setRef.current);
+    await Sharing.shareAsync(uri, { mimeType: 'application/zip', dialogTitle: `Esporta ${setRef.current.name}` });
+  }, [flushSave]);
+
+  const importFile = useCallback(
+    (uri: string) => {
+      flushSave();
+      activate(importSet(uri));
+    },
+    [flushSave, activate],
+  );
+
+  return {
+    set,
+    statuses,
+    startup,
+    haptics: app.haptics,
+    setHaptics,
+    update,
+    load,
+    clear,
+    sets,
+    switchSet,
+    createSet,
+    renameSet,
+    duplicateSet,
+    deleteSet,
+    exportActive,
+    importFile,
+  };
 }

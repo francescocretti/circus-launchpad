@@ -46,7 +46,8 @@
       ],
       "./plugins/withApkName",
       "./plugins/withReleaseSigning",
-      "expo-font"
+      "expo-font",
+      "expo-sharing"
     ]
   }
 }

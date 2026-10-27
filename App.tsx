@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { PadSheet } from './src/edit/PadSheet';
+import { SetSheet } from './src/edit/SetSheet';
 import { tap } from './src/haptics';
 import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
@@ -23,9 +24,11 @@ export default function App() {
     IBMPlexMono_500Medium,
     IBMPlexMono_600SemiBold,
   });
-  const { set, statuses, startup, haptics, setHaptics, update, load, clear } = usePadSet();
+  const pads = usePadSet();
+  const { set, statuses, startup, haptics, setHaptics, update, load, clear } = pads;
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  const [setsOpen, setSetsOpen] = useState(false);
   const [activeCount, setActiveCount] = useState(0);
 
   useEffect(() => engine.subscribe(() => setActiveCount(engine.activeCount())), []);
@@ -63,6 +66,7 @@ export default function App() {
         haptics={haptics}
         onToggleHaptics={() => setHaptics(!haptics)}
         onEdit={() => setEditing(true)}
+        onOpenSets={() => setSetsOpen(true)}
         onDone={() => setEditing(false)}
         onStopAll={() => {
           engine.stopAll();
@@ -78,6 +82,19 @@ export default function App() {
         onLoad={load}
         onUpdate={update}
         onClear={clear}
+      />
+      <SetSheet
+        visible={setsOpen}
+        active={set}
+        listSets={pads.sets}
+        onClose={() => setSetsOpen(false)}
+        onSwitch={pads.switchSet}
+        onCreate={pads.createSet}
+        onRename={pads.renameSet}
+        onDuplicate={pads.duplicateSet}
+        onDelete={pads.deleteSet}
+        onExport={pads.exportActive}
+        onImport={pads.importFile}
       />
     </View>
   );

@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4); prossimo: M4.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5); prossimo: M5.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -236,8 +236,8 @@ Con il pad in riproduzione, la logica è:
 
 ### 7.2 Layout EDIT (D-29)
 
-- **Barra**: badge `EDIT` · selettore `SET` (menu a tendina: set esistenti + `+ NUOVO SET`) · `ESPORTA` ·
-  `IMPORTA` · `VIBRAZIONE ON/OFF` · (spazio) · `FINE ✓`.
+- **Barra**: badge `EDIT` · pulsante `SET NOME ▾` (apre la **finestra SET**, D-31) · `VIBRAZIONE ON/OFF` · (spazio) ·
+  `FINE ✓`.
 - **Griglia**: la stessa di PLAY, a grandezza reale (così si vede la disposizione vera dei pad), con i bordi ambra.
   Tocco su un pad = si apre la **finestra del pad**.
 - **Finestra del pad** (modale sopra la griglia, bordo ambra; stile del pannello provvisorio di M2, approvato
@@ -545,6 +545,18 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 - Nota di distribuzione: Play Protect chiede conferma all'installazione dell'APK (firma di debug, fuori store).
   Da spiegare nelle istruzioni per la band (M5).
 
+### 15.5 Stato M4 (2026-10-27)
+
+- **Finestra SET** (D-31, `src/edit/SetSheet.tsx`): elenco dei set con numero di pad e memoria; un tocco rende attivo
+  un set (stop rapido dell'audio, poi `CARICAMENTO… n/N`); nella riga del set attivo ci sono il nome modificabile,
+  `DUPLICA`, `ESPORTA` ed `ELIMINA` (con conferma, disattivato se è l'unico set); in fondo `+ NUOVO SET` e
+  `IMPORTA DA FILE…`.
+- **File `.circus`**: ZIP senza compressione scritto e letto a blocchi da 1 MB (`src/model/zip.ts`, nessuna dipendenza),
+  con controllo CRC; contiene `set.json` e `samples/<sha256>.<ext>`. Si apre anche con `unzip` (c'è un test).
+  L'importazione crea sempre un set nuovo, con il suffisso "(IMPORTATO)" se il nome è già usato.
+- All'avvio e dopo l'eliminazione di un set si cancellano le copie dei sample non più usate e i file temporanei.
+- Provato dall'utente su Pixel 7a: tutto ok.
+
 ## 16. Punti aperti
 
 | # | Questione | Default attuale |
@@ -552,8 +564,8 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 | P-1 | Uscita audio (cavo, interfaccia USB, mono/stereo, livello): da decidere con il tecnico audio. | Raccomandato cavo USB-C → jack + DI. |
 | P-2 | Durata tipica e massima dei sample (non ancora detta). | Avviso oltre 5 min per file e oltre 300 MB totali (§8). |
 | P-3 | Telefoni della band oltre al Pixel 7a ("o simili"). | Android 12+, layout in dp che si adatta. |
-| P-4 | EDIT: spostare o scambiare i pad, gestione completa dei set (rinomina, duplica, elimina). | Da disegnare in M3/M4. |
-| P-5 | Libreria ZIP per `.circus`. | Da scegliere in M4. |
+| P-4 | EDIT: spostare o scambiare i pad. | Non ancora richiesto. |
+| P-5 | ~~Libreria ZIP~~: risolto con un writer/reader ZIP interno (M4). | — |
 | P-6 | Canale di distribuzione dell'APK (GitHub Releases come Tessere?). | Da decidere in M5. |
 | P-7 | Icona dell'app. | Placeholder di Expo. |
 | P-8 | Marchio "Launchpad" (Novation): nessun problema per un APK privato, da rivalutare se si pubblica su uno store. | — |
@@ -598,4 +610,5 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-28 | Feedback aptico: un colpo secco uguale a ogni tocco su un pad carico in PLAY e allo scatto di STOP. Intensità `LONG_PRESS`. Interruttore generale in EDIT, attivo di default. |
 | D-29 | EDIT: la griglia resta a grandezza reale e un tocco su un pad apre una finestra con le sue impostazioni (non la mini-griglia con pannello fisso del prototipo). |
 | D-30 | Fade in/out a valori predefiniti OFF/1/3/5/7 s, scelti con un tocco: i − e + erano scomodi; slider e scorrimento sulla casella sono stati scartati (impreciso il primo, gesto nascosto il secondo). Lo 0 si legge `OFF`, non con un bordo rosso: il rosso significa stop o errore. |
+| D-31 | I set si gestiscono in una finestra SET aperta dal nome del set nella barra di EDIT; le azioni valgono per il set attivo. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |

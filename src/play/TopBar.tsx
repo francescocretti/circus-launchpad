@@ -14,11 +14,12 @@ interface Props {
   haptics: boolean;
   onToggleHaptics: () => void;
   onEdit: () => void;
+  onOpenSets: () => void;
   onDone: () => void;
   onStopAll: () => void;
 }
 
-export function TopBar({ editing, setName, activeCount, startup, haptics, onToggleHaptics, onEdit, onDone, onStopAll }: Props) {
+export function TopBar({ editing, setName, activeCount, startup, haptics, onToggleHaptics, onEdit, onOpenSets, onDone, onStopAll }: Props) {
   return (
     <View style={styles.bar}>
       {editing ? (
@@ -34,10 +35,18 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, onTogg
           <Text style={styles.brandLight}>LAUNCHPAD</Text>
         </View>
       )}
-      <View style={styles.set}>
-        <Text style={styles.muted}>SET</Text>
-        <Text style={styles.setName}>{setName}</Text>
-      </View>
+      {editing ? (
+        <Pressable onPress={onOpenSets} style={[styles.set, styles.setButton]} accessibilityLabel="Gestisci i set">
+          <Text style={styles.muted}>SET</Text>
+          <Text style={styles.setName}>{setName}</Text>
+          <Text style={[styles.setName, { color: colors.edit }]}>▾</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.set}>
+          <Text style={styles.muted}>SET</Text>
+          <Text style={styles.setName}>{setName}</Text>
+        </View>
+      )}
       <View style={{ flex: 1 }} />
       {startup && (
         <Text style={[styles.muted, { color: colors.edit }]}>
@@ -134,6 +143,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   set: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  setButton: { borderWidth: 1, borderColor: colors.edit, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 3 },
   muted: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.9, color: colors.textMuted },
   setName: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 0.9, color: colors.text },
   outlineBtn: { borderWidth: 1, borderColor: '#5a534c', borderRadius: 4, paddingHorizontal: 12, paddingVertical: 4 },
