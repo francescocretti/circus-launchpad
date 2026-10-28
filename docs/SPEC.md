@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passo 1 (login) fatto (§15.7).
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passi 1 (login) e 2 (logica di sync) fatti (§15.7).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -362,20 +362,22 @@ Design concordato con l'utente il 2026-10-28, non ancora implementato.
   `WAITING FOR WI-FI` e la sync parte da sola quando torna il Wi-Fi.
 - **Ordine**: prima i JSON dei set (leggeri), poi i sample mancanti. Un pad il cui sample non è ancora arrivato
   mostra `LOADING…`.
-- **Rilevare i cambi**: per ogni set il telefono ricorda l'ultima versione sincronizzata (hash del contenuto locale e
-  versione del file su Drive), in un file di stato della sync separato da `state.json`.
+- **Rilevare i cambi**: ogni set ha un hash del contenuto (tutto tranne `updatedAt`), che su Drive sta nelle
+  `appProperties` del file. Il telefono ricorda l'hash di ogni set all'ultima sync riuscita (la "base"), in un file
+  di stato della sync separato da `state.json`. Cambiato = hash diverso dalla base.
   - cambiato solo sul telefono → si carica; cambiato solo su Drive → si scarica;
   - cambiato da tutte e due le parti → **conflitto**: la versione di Drive sostituisce quella locale e la versione
     locale diventa un set nuovo `… (CONFLICT)`, che sale su Drive. Non si perde mai niente.
 - **Cancellazioni**: si propagano. Cancellare un set sul telefono lo manda nel **cestino di Drive** (recuperabile
-  per 30 giorni) alla sync successiva; il telefono tiene l'elenco delle cancellazioni non ancora inviate. Un file
+  per 30 giorni) alla sync successiva: un set che manca sul telefono ma è nella base è stato cancellato qui. Un file
   `.json` cestinato a mano su Drive cancella il set dai telefoni. Cancellato da una parte e modificato dall'altra →
   vince la modifica. Un sample si cestina da Drive solo quando nessun set lo usa più.
   - Se manca **l'intera cartella** (cancellata o cestinata), non si cancella niente sui telefoni: la cartella si
     ricrea e si ricarica tutto, come una prima sync.
 - **Prima sync di un telefono**: unione. Sale tutto quello che c'è sul telefono, scende tutto quello che c'è su
   Drive. Un set con lo stesso nome ma id diverso resta doppio: quello del telefono prende il suffisso del modello,
-  es. `SET 1 (PIXEL 7A)`. Il set vuoto iniziale mai toccato non sale.
+  es. `SET 1 (PIXEL 7A)`. Il set vuoto iniziale mai toccato (nessun sample, nessuna etichetta) non sale e, se
+  Drive porta altri set, sparisce dal telefono: è vuoto, non si perde niente.
 - **Set attivo cambiato altrove**: i set non attivi si aggiornano subito. Quello attivo si aggiorna:
   - all'apertura dell'app, se l'aggiornamento arriva entro pochi secondi, prima che i pad diventino suonabili;
   - altrimenti appena si entra in EDIT, con un breve `SET UPDATED` (nessuna conferma richiesta).
@@ -641,6 +643,9 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 2. **Logica di sync pura** (`src/sync/`): dato lo stato locale, lo stato di Drive e l'ultima sync, calcola il piano
    (carica, scarica, conflitto, cestina, unione della prima sync, cartella mancante). Nessun accesso a rete o
    disco, così si prova con `npm test`: un test per ogni caso di §10.2.
+   - **Fatto il 2026-10-28.** `src/sync/plan.ts`: `planSets` (azioni upload, download, conflict, deleteLocal,
+     trashRemote, record, forget), `planSamples`, `setHash` (cyrb53 su JSON con chiavi ordinate). 21 test in
+     `src/sync/__tests__/plan.test.ts`. Se la cartella su Drive è sparita, il chiamante passa una base vuota.
 3. **Client Drive**: Drive API v3 con `fetch` (elenco con `appProperties`, upload resumable per i sample,
    download a blocchi su disco, cestino), più il file di stato della sync.
 4. **UI e momenti di sync**: pulsante `⟳ SYNC` e finestra SYNC, frecce in PLAY all'apertura, regola del Wi-Fi,
