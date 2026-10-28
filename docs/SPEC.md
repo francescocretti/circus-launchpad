@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passi 1 (login) e 2 (logica di sync) fatti (§15.7).
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passi 1–3 (login, logica, client Drive) fatti (§15.7).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -648,6 +648,14 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
      `src/sync/__tests__/plan.test.ts`. Se la cartella su Drive è sparita, il chiamante passa una base vuota.
 3. **Client Drive**: Drive API v3 con `fetch` (elenco con `appProperties`, upload resumable per i sample,
    download a blocchi su disco, cestino), più il file di stato della sync.
+   - **Fatto il 2026-10-28.** `src/sync/drive.ts` (elenco per `appProperties`, JSON dei set in multipart, sample con
+     upload resumable che parte dal disco con `File.upload`, download con `File.downloadFileAsync` e verifica dello
+     SHA-256 prima di accettare il file, cestino), `src/sync/run.ts` (esegue il piano e salva la base dopo ogni
+     azione; se una cartella su Drive è stata ricreata la base si azzera), stato in `documenti/sync.json`.
+     Il set vuoto iniziale ha lo stesso id (`default`) su ogni telefono: davanti a quello di Drive lascia il posto
+     senza conflitto. Finestra SYNC con `LAST SYNC` e `SYNC NOW`; per ora la sync non tocca il set attivo.
+     Verificato dall'utente sul 7a: primo upload di set e sample, seconda sync senza doppioni, set nuovo che sale,
+     cestinato su Drive → sparisce dal telefono, ripristinato → torna (download), cancellato sul telefono → cestino.
 4. **UI e momenti di sync**: pulsante `⟳ SYNC` e finestra SYNC, frecce in PLAY all'apertura, regola del Wi-Fi,
    aggiornamento rimandato del set attivo con `SET UPDATED`, `LOADING…` sui pad senza sample.
 5. **Prova su due telefoni** con lo stesso account: backup e ripristino dopo una reinstallazione, modifica da una

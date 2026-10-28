@@ -2,6 +2,7 @@
 //   documenti/samples/<sha256>.<ext>   copie dei file audio (condivise tra pad e set)
 //   documenti/sets/<setId>.json         un file per set
 //   documenti/state.json                ultimo set usato e impostazioni dell'app
+//   documenti/sync.json                 stato della sync su Drive (spec §10.2)
 import { Directory, File, FileMode, Paths } from 'expo-file-system';
 import { emptyPad, PAD_COUNT, PadConfig } from './pads';
 import { extractEntry, readZipIndex, writeZip, ZipSink, ZipSource } from './zip';
@@ -22,6 +23,7 @@ export interface AppState {
 const samplesDir = () => new Directory(Paths.document, 'samples');
 const setsDir = () => new Directory(Paths.document, 'sets');
 const stateFile = () => new File(Paths.document, 'state.json');
+const syncFile = () => new File(Paths.document, 'sync.json');
 
 function ensureDir(d: Directory) {
   if (!d.exists) d.create({ intermediates: true });
@@ -67,6 +69,58 @@ export async function importSample(pickedUri: string, fileName: string): Promise
 
 export const sampleUri = (id: string) => new File(samplesDir(), id).uri;
 export const sampleExists = (id: string) => new File(samplesDir(), id).exists;
+export const sampleFile = (id: string) => new File(samplesDir(), id);
+
+const SAMPLE_ID = /^[0-9a-f]{64}\.[a-z0-9]{1,5}$/;
+
+/** Id dei sample presenti sul telefono. */
+export function listLocalSamples(): string[] {
+  const dir = samplesDir();
+  if (!dir.exists) return [];
+  return dir
+    .list()
+    .filter((f): f is File => f instanceof File)
+    .map((f) => decodeURIComponent(f.uri.split('/').filter(Boolean).pop()!))
+    .filter((name) => SAMPLE_ID.test(name));
+}
+
+/**
+ * Porta nella cartella dei sample un file scaricato, solo se il contenuto corrisponde all'id (SHA-256 + estensione):
+ * un download troncato o sbagliato non deve mai diventare un sample.
+ */
+export async function adoptSample(tmp: File, id: string): Promise<boolean> {
+  const ok = SAMPLE_ID.test(id) && `${await tmp.digest('SHA-256')}.${id.split('.').pop()}` === id;
+  if (!ok) {
+    tmp.delete();
+    return false;
+  }
+  const dest = new File(samplesDir(), id);
+  if (dest.exists) tmp.delete();
+  else tmp.moveSync(dest);
+  return true;
+}
+
+/** Cartella dei file temporanei dei download, accanto ai sample (stesso disco: la rinomina è immediata). */
+export function downloadTarget(id: string): File {
+  const dir = samplesDir();
+  ensureDir(dir);
+  return new File(dir, `download-${id}.tmp`);
+}
+
+export interface SyncStateFile {
+  /** Hash di ogni set all'ultima sync riuscita (spec §10.2). */
+  base: Record<string, string>;
+  lastSync: string | null;
+  mobileData: boolean;
+}
+
+export function loadSyncState(): SyncStateFile {
+  return { base: {}, lastSync: null, mobileData: false, ...readJson<Partial<SyncStateFile>>(syncFile()) };
+}
+
+export function saveSyncState(state: SyncStateFile) {
+  writeJson(syncFile(), state);
+}
 
 export function loadAppState(): AppState | null {
   return readJson<AppState>(stateFile());
@@ -195,7 +249,7 @@ export function importSet(uri: string): PadSet {
     for (const e of index) {
       if (!e.name.startsWith('samples/')) continue;
       const id = e.name.slice('samples/'.length);
-      if (!/^[0-9a-f]{64}\.[a-z0-9]{1,5}$/.test(id) || sampleExists(id)) continue;
+      if (!SAMPLE_ID.test(id) || sampleExists(id)) continue;
       const tmp = new File(dir, `import-${Date.now()}.tmp`);
       const sink = fileSink(tmp);
       try {

@@ -35,7 +35,8 @@ export default function App() {
   const [setsOpen, setSetsOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
-  const sync = useSync();
+  // Per ora la sync non tocca il set attivo: il ricaricamento dei pad arriva con il passo 4 (spec §15.7).
+  const sync = useSync((id) => id !== set?.id);
   const [activeCount, setActiveCount] = useState(0);
   const { output, changed: outputChanged } = useAudioOutput();
 

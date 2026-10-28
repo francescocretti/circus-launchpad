@@ -1,13 +1,24 @@
-// Finestra SYNC (spec §10.2), aperta da EDIT con `⟳ SYNC`. Per ora (M6, passo 1) solo l'account Google;
-// LAST SYNC, SYNC NOW e MOBILE DATA arrivano con il passo 4 (§15.7).
+// Finestra SYNC (spec §10.2), aperta da EDIT con `⟳ SYNC`: account Google, ultima sync e SYNC NOW.
+// L'interruttore MOBILE DATA arriva con il passo 4 (§15.7).
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 import { SyncIcon } from './SyncIcon';
 import { ROOT_FOLDER_NAME } from './drive';
+import type { SyncProgress } from './run';
 import type { SyncState } from './useSync';
 
+const progressText = (p: SyncProgress) =>
+  p.phase === 'sets' ? `Sets ${p.done}/${p.total}` : `Samples ${p.done}/${p.total}`;
+
+function formatLastSync(iso: string | null): string {
+  if (!iso) return 'Never';
+  const d = new Date(iso);
+  const time = d.toTimeString().slice(0, 5);
+  return d.toDateString() === new Date().toDateString() ? time : `${d.toISOString().slice(0, 10)} ${time}`;
+}
+
 export function SyncSheet({ visible, sync, onClose }: { visible: boolean; sync: SyncState; onClose: () => void }) {
-  const { account, busy, error } = sync;
+  const { account, busy, error, progress } = sync;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['landscape']}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -37,6 +48,17 @@ export function SyncSheet({ visible, sync, onClose }: { visible: boolean; sync: 
               <Text style={[styles.btnText, !account && { color: colors.ink }]}>{account ? 'SIGN OUT' : 'SIGN IN'}</Text>
             </Pressable>
           </View>
+          {account && (
+            <View style={styles.row}>
+              <Text style={styles.label}>LAST SYNC</Text>
+              <Text style={styles.value} numberOfLines={1}>
+                {busy && progress ? progressText(progress) : busy ? 'Syncing…' : formatLastSync(sync.lastSync)}
+              </Text>
+              <Pressable onPress={sync.syncNow} disabled={busy} style={[styles.btn, busy && { opacity: 0.35 }]}>
+                <Text style={styles.btnText}>SYNC NOW</Text>
+              </Pressable>
+            </View>
+          )}
           {error && <Text style={[styles.detail, { color: colors.danger }]}>{error}</Text>}
         </Pressable>
       </Pressable>

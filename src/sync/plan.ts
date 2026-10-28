@@ -69,6 +69,11 @@ export function planSets({ local, remote, base, device, newId }: PlanInput): Set
         if (b !== l.hash) actions.push({ kind: 'record', id, hash: l.hash });
         continue;
       }
+      // Il set vuoto iniziale ha lo stesso id su ogni telefono: davanti a quello di Drive lascia il posto.
+      if (b === undefined && l.pristine) {
+        actions.push({ kind: 'download', id, fileId: r.fileId });
+        continue;
+      }
       const localChanged = l.hash !== b;
       const remoteChanged = r.hash !== b;
       if (b !== undefined && localChanged && !remoteChanged) actions.push({ kind: 'upload', id, fileId: r.fileId });

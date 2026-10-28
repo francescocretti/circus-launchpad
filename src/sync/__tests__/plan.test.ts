@@ -98,6 +98,12 @@ test('prima sync: il set vuoto iniziale non sale e, se Drive porta altri set, sp
   ]);
 });
 
+test('telefono nuovo: il set vuoto iniziale ha lo stesso id di quello su Drive e lascia il posto, niente conflitto', () => {
+  assert.deepEqual(plan({ local: [loc('default', 'h0', 'SET 1', true)], remote: [rem('default', 'h5', 'SET 1')] }), [
+    { kind: 'download', id: 'default', fileId: 'f-default' },
+  ]);
+});
+
 test('prima sync con Drive vuoto: il set vuoto iniziale resta sul telefono e non sale', () => {
   assert.deepEqual(plan({ local: [loc('default', 'h0', 'SET 1', true)] }), []);
 });
