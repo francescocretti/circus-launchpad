@@ -1,9 +1,10 @@
 # Circus Launchpad
 
-A sample launcher for Android, built for playing live. It has 12 big pads, and each pad holds one audio file from
-the phone. A pad can play as a one shot or as a loop, forwards or in reverse. Loudness is matched automatically, every
-pad has its own fades, and you can keep one set of pads per show and move sets between phones as a single `.circus`
-file.
+An open-source sample launcher for Android, built for playing live: for anyone who needs to fire sounds on cue, on
+stage or anywhere else. It has 12 big pads, and each pad holds one audio file from the phone and starts the moment you
+touch it. A pad can play as a one shot or as a seamless loop, forwards or in reverse. Loudness is matched
+automatically, every pad has its own fades, and you can keep one set of pads per show and move sets between phones as
+a single `.circus` file.
 
 ![The pad grid while playing: two loops and a one shot running](docs/screenshots/play.png)
 

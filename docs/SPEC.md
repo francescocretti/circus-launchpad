@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** progettato (§10.2, D-36), da iniziare (§15.7).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -346,6 +346,52 @@ interface PadSet {
 }
 ```
 
+### 10.2 Sync su Google Drive (D-36, M6)
+
+Design concordato con l'utente il 2026-10-28, non ancora implementato.
+
+- **Scopo**: backup dei set e **gli stessi set su più telefoni**, tutti con un solo account Google (quello
+  dell'utente). Condividere i set tra account diversi (compagni di band) è fuori scope: resta l'export `.circus`.
+- **Dove**: cartella **visibile** `Circus Launchpad Backup` nel Drive dell'utente, con `Sets/` e `Samples/`.
+  Scope OAuth `drive.file`: l'app vede solo i file che ha creato lei. Nomi leggibili (`Sets/DEMO SHOW.json`,
+  `Samples/kick loop · a1b2c3.wav`, con le prime cifre dell'hash), ma i file si riconoscono dall'ID salvato nelle
+  `appProperties` di Drive (id del set, hash del sample): rinominarli o spostarli dentro la cartella non rompe la sync.
+- **Quando**: all'apertura dell'app, all'uscita da EDIT (`DONE ✓`) e con `SYNC NOW`. **Mai in PLAY**, a parte la
+  sync di apertura. Di default **solo in Wi-Fi**; l'interruttore `MOBILE DATA` (OFF di default) permette i dati
+  mobili. La regola vale anche per `SYNC NOW`: sui dati mobili con l'interruttore su OFF il pulsante mostra
+  `WAITING FOR WI-FI` e la sync parte da sola quando torna il Wi-Fi.
+- **Ordine**: prima i JSON dei set (leggeri), poi i sample mancanti. Un pad il cui sample non è ancora arrivato
+  mostra `LOADING…`.
+- **Rilevare i cambi**: per ogni set il telefono ricorda l'ultima versione sincronizzata (hash del contenuto locale e
+  versione del file su Drive), in un file di stato della sync separato da `state.json`.
+  - cambiato solo sul telefono → si carica; cambiato solo su Drive → si scarica;
+  - cambiato da tutte e due le parti → **conflitto**: la versione di Drive sostituisce quella locale e la versione
+    locale diventa un set nuovo `… (CONFLICT)`, che sale su Drive. Non si perde mai niente.
+- **Cancellazioni**: si propagano. Cancellare un set sul telefono lo manda nel **cestino di Drive** (recuperabile
+  per 30 giorni) alla sync successiva; il telefono tiene l'elenco delle cancellazioni non ancora inviate. Un file
+  `.json` cestinato a mano su Drive cancella il set dai telefoni. Cancellato da una parte e modificato dall'altra →
+  vince la modifica. Un sample si cestina da Drive solo quando nessun set lo usa più.
+  - Se manca **l'intera cartella** (cancellata o cestinata), non si cancella niente sui telefoni: la cartella si
+    ricrea e si ricarica tutto, come una prima sync.
+- **Prima sync di un telefono**: unione. Sale tutto quello che c'è sul telefono, scende tutto quello che c'è su
+  Drive. Un set con lo stesso nome ma id diverso resta doppio: quello del telefono prende il suffisso del modello,
+  es. `SET 1 (PIXEL 7A)`. Il set vuoto iniziale mai toccato non sale.
+- **Set attivo cambiato altrove**: i set non attivi si aggiornano subito. Quello attivo si aggiorna:
+  - all'apertura dell'app, se l'aggiornamento arriva entro pochi secondi, prima che i pad diventino suonabili;
+  - altrimenti appena si entra in EDIT, con un breve `SET UPDATED` (nessuna conferma richiesta).
+  In PLAY i pad non cambiano mai.
+- **UI**:
+  - in EDIT, pulsante `⟳ SYNC` nella barra tra `CHECKLIST` e `HAPTICS`: frecce ferme a riposo, che girano durante
+    la sync, rosse se l'ultima sync è fallita (finché una sync successiva non riesce);
+  - in PLAY nessun pulsante: durante la sync di apertura solo le frecce piccole che girano accanto al nome del set;
+  - **finestra SYNC**: account Google (`SIGN IN` / `SIGN OUT`), `LAST SYNC 14:32` oppure il motivo dell'errore,
+    `SYNC NOW`, interruttore `MOBILE DATA OFF/ON`.
+- **Configurazione Google, a cura dell'utente** (come per il keystore: è il suo account): progetto su Google
+  Cloud Console con Drive API, schermata di consenso OAuth **"In production"** (in "Testing" il login scade ogni
+  7 giorni; con il solo `drive.file` non serve la verifica di Google), client OAuth Android per il package
+  `io.github.francescocretti.circuslaunchpad` con lo SHA-1 del keystore di release (si legge dall'APK con
+  `apksigner verify --print-certs`, senza password) e un secondo client per la build di debug.
+
 ## 11. Uscita audio
 
 Ancora da decidere con il tecnico audio (§16). Raccomandazione: **uscita cablata**, cioè adattatore USB-C →
@@ -492,6 +538,7 @@ M0 deve dimostrare che due pad toccati insieme partono entrambi.
 | M3 — EDIT + caricamento | Pannello del pad, caricamento con copia e analisi, persistenza. | §7–§9. |
 | M4 — Set ed esportazione | Set multipli, `.circus` import/export. | §10. |
 | M5 — Rifinitura e release | Icona, font, checklist da palco, indicatore uscita, keystore, prima release. | APK installato sui telefoni della band. |
+| M6 — Sync su Drive | Login Google, sync dei set e dei sample su Drive (§10.2, D-36), release 1.1.0. | §10.2 verificato su due telefoni con lo stesso account (§15.7). |
 
 **Misura della latenza (M0)**: un pad con un click secco, il telefono collegato via cavo a una cassa, e un
 secondo telefono che filma in slow motion (240 fps ≈ 4 ms per fotogramma) il dito e un microfono, oppure
@@ -578,6 +625,23 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
   prima del primo pad.
 - Release GitHub `v1.0.0` con l'APK allegato, repo reso pubblico (D-33).
 
+### 15.7 Piano M6 — Sync su Drive (da iniziare)
+
+1. **Configurazione e login.** L'utente crea progetto, consenso OAuth e client Android (§10.2). Si sceglie la
+   libreria di login verificando la documentazione di Expo SDK 58 (candidate: Google Sign-In nativo con config
+   plugin, oppure `expo-auth-session`) e il tipo di rete con `expo-network`. Uscita: login e logout funzionanti sul
+   7a, cartella `Circus Launchpad Backup` creata su Drive.
+2. **Logica di sync pura** (`src/sync/`): dato lo stato locale, lo stato di Drive e l'ultima sync, calcola il piano
+   (carica, scarica, conflitto, cestina, unione della prima sync, cartella mancante). Nessun accesso a rete o
+   disco, così si prova con `npm test`: un test per ogni caso di §10.2.
+3. **Client Drive**: Drive API v3 con `fetch` (elenco con `appProperties`, upload resumable per i sample,
+   download a blocchi su disco, cestino), più il file di stato della sync.
+4. **UI e momenti di sync**: pulsante `⟳ SYNC` e finestra SYNC, frecce in PLAY all'apertura, regola del Wi-Fi,
+   aggiornamento rimandato del set attivo con `SET UPDATED`, `LOADING…` sui pad senza sample.
+5. **Prova su due telefoni** con lo stesso account: backup e ripristino dopo una reinstallazione, modifica da una
+   parte sola, conflitto, cancellazione in tutte e due le direzioni, prima sync con set già presenti, set attivo
+   cambiato altrove, solo Wi-Fi. Poi README (sezione Sync, in inglese) e release `v1.1.0`.
+
 ## 16. Punti aperti
 
 | # | Questione | Default attuale |
@@ -593,7 +657,7 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 
 ## 17. Fuori scope (v1)
 
-Sync/BPM/quantizzazione · modalità Gate · punti di loop o di trim impostabili · pitch e time-stretch · effetti ·
+Sync al tempo/BPM/quantizzazione (la sync su Drive invece c'è: §10.2) · modalità Gate · punti di loop o di trim impostabili · pitch e time-stretch · effetti ·
 registrazione dal microfono · MIDI · controllo da un secondo dispositivo · iOS · Play Store · banchi/pagine
 oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 
@@ -636,4 +700,5 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-33 | Distribuzione: release su GitHub con l'APK allegato; la band lo scarica dalla pagina Releases (link diretto nel README). |
 | D-34 | Interfaccia tutta in inglese (prima era mista). Le etichette italiane citate nelle sezioni precedenti corrispondono a: CARICA/SOSTITUISCI → LOAD/REPLACE, ASCOLTA → PREVIEW, SVUOTA → CLEAR, CONFERMA → CONFIRM, MODALITÀ → MODE, DIREZIONE AVANTI → DIRECTION FWD, AL RITOCCO RIPARTE/IGNORA → ON RETRIGGER RESTART/IGNORE, NORMALIZZA → NORMALIZE, CORREZIONE → TRIM, VIBRAZIONE → HAPTICS, FINE → DONE, VOCI → VOICES, CAVO → WIRED, ALTOPARLANTE → SPEAKER, TIENI PREMUTO PER FERMARE → HOLD TO STOP, DUPLICA/ESPORTA/ELIMINA → DUPLICATE/EXPORT/DELETE, NUOVO SET → NEW SET, IMPORTA DA FILE → IMPORT FROM FILE, CHECKLIST DA PALCO → STAGE CHECKLIST. Numeri con il punto decimale. Anche il README (pubblico) è in inglese, come guida d'uso con screenshot in `docs/screenshots/`. Commenti nel codice, spec e AGENTS restano in italiano. |
 | D-35 | Lo stream audio parte all'apertura dell'app e resta sempre attivo, anche senza pad in riproduzione. La libreria si riprende da sola da una disconnessione (cambio di uscita, app congelata in background, stream esclusivo preso da un'altra app) solo se lo stream sta girando: uno stream aperto ma mai avviato restava muto per sempre (bug trovato il 2026-10-28 dopo il selettore di file). In più un watchdog ricrea il contesto se il clock audio resta fermo per 2 s; le voci in corso si perdono, i buffer restano. |
+| D-36 | Sync dei set su Google Drive (§10.2): backup e stessi set su più telefoni con un solo account; cartella visibile `Circus Launchpad Backup`, scope `drive.file`, file riconosciuti dall'ID e non dal nome. Si sincronizza all'apertura, all'uscita da EDIT e con `SYNC NOW`, mai in PLAY; solo Wi-Fi di default. Conflitto → si tengono entrambe le versioni (`… (CONFLICT)`); cancellazioni propagate con il cestino di Drive; prima sync per unione; il set attivo cambiato altrove si aggiorna solo fuori da PLAY. Pulsante `⟳ SYNC` in EDIT con le frecce che girano durante la sync, finestra SYNC separata dalla finestra SET. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |
