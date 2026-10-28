@@ -25,11 +25,13 @@ interface Props {
   /** Sync in corso e ultimo esito (spec §10.2). */
   syncBusy: boolean;
   syncError: boolean;
+  /** Messaggio breve dopo una sync, es. SET UPDATED. */
+  notice: string | null;
   onDone: () => void;
   onStopAll: () => void;
 }
 
-export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onOpenSync, syncBusy, syncError, onDone, onStopAll }: Props) {
+export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onOpenSync, syncBusy, syncError, notice, onDone, onStopAll }: Props) {
   return (
     <View style={styles.bar}>
       {editing ? (
@@ -55,9 +57,15 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, output
         <View style={styles.set}>
           <Text style={styles.muted}>SET</Text>
           <Text style={styles.setName}>{setName}</Text>
+          {syncBusy && (
+            <View style={{ alignSelf: 'center' }}>
+              <SyncIcon busy size={11} />
+            </View>
+          )}
         </View>
       )}
       <View style={{ flex: 1 }} />
+      {notice && <Text style={[styles.muted, { color: colors.edit }]}>{notice}</Text>}
       {startup && (
         <Text style={[styles.muted, { color: colors.edit }]}>
           LOADING… {startup.done}/{startup.total}

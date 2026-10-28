@@ -19,6 +19,8 @@ interface Props {
   onDelete: () => void;
   onExport: () => Promise<void>;
   onImport: (uri: string) => void;
+  /** Cambia quando la sync modifica l'elenco dei set: la finestra lo rilegge. */
+  refreshKey: number;
 }
 
 const stats = (set: PadSet) => {
@@ -62,7 +64,7 @@ function Btn(props: { label: string; onPress: () => void; tone?: 'confirm' | 'da
 }
 
 export function SetSheet(props: Props) {
-  const { visible, active, listSets } = props;
+  const { visible, active, listSets, refreshKey } = props;
   const [list, setList] = useState<PadSet[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export function SetSheet(props: Props) {
     if (!visible) return;
     const t = setTimeout(() => setList(listSets()), 0);
     return () => clearTimeout(t);
-  }, [visible, active, listSets]);
+  }, [visible, active, listSets, refreshKey]);
 
   useEffect(() => {
     if (!confirmDelete) return;

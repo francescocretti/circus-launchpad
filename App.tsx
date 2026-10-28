@@ -5,7 +5,7 @@ import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { ChecklistSheet } from './src/edit/ChecklistSheet';
 import { PadSheet } from './src/edit/PadSheet';
@@ -14,10 +14,15 @@ import { tap } from './src/haptics';
 import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
 import { TopBar } from './src/play/TopBar';
+import { currentAccount } from './src/sync/auth';
 import { SyncSheet } from './src/sync/SyncSheet';
 import { useSync } from './src/sync/useSync';
 import { useAudioOutput } from './src/play/useAudioOutput';
 import { colors } from './src/theme';
+
+/** All'apertura il set attivo si aggiorna dalla sync solo entro questo tempo e prima di suonare (spec §10.2). */
+const STARTUP_APPLY_MS = 5000;
+const NOTICE_MS = 3000;
 
 export default function App() {
   useKeepAwake();
@@ -28,28 +33,89 @@ export default function App() {
     IBMPlexMono_500Medium,
     IBMPlexMono_600SemiBold,
   });
-  const pads = usePadSet();
+  const pads = usePadSet({ samplesMayArrive: currentAccount() !== null });
   const { set, statuses, startup, haptics, setHaptics, update, load, clear } = pads;
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [setsOpen, setSetsOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
-  // Per ora la sync non tocca il set attivo: il ricaricamento dei pad arriva con il passo 4 (spec §15.7).
-  const sync = useSync((id) => id !== set?.id);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [setsVersion, setSetsVersion] = useState(0);
+  const editingRef = useRef(editing);
+  const activeId = useRef(set?.id);
+  const launchedAt = useRef(Date.now());
+  const played = useRef(false);
+  useEffect(() => {
+    editingRef.current = editing;
+    activeId.current = set?.id;
+  });
+
+  // La sync sostituisce il set attivo solo in EDIT, oppure appena aperta l'app prima di suonare (spec §10.2).
+  const canReplace = useCallback(
+    (id: string) =>
+      id !== activeId.current ||
+      editingRef.current ||
+      (!played.current && Date.now() - launchedAt.current < STARTUP_APPLY_MS),
+    [],
+  );
+  const sync = useSync({
+    canReplace,
+    beforeSync: () => {
+      pads.flush();
+      pads.setSamplesPending(true);
+    },
+    onSample: () => void pads.resolveWaiting(),
+    onDone: (r) => {
+      pads.setSamplesPending(false);
+      if (r) {
+        if (pads.applySync(r.changed, r.deleted)) setNotice('SET UPDATED');
+        if (r.changed.length || r.deleted.length) setSetsVersion((v) => v + 1);
+      }
+      void pads.resolveWaiting();
+    },
+  });
+  const { request: requestSync, deferred: syncDeferred } = sync;
+
+  // Sync all'apertura.
+  useEffect(() => {
+    requestSync();
+  }, [requestSync]);
+
+  // Entrando in EDIT, se la sync aveva lasciato in sospeso il set attivo, si riprova (adesso si può sostituire).
+  useEffect(() => {
+    if (editing && syncDeferred) requestSync();
+  }, [editing, syncDeferred, requestSync]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [notice]);
   const [activeCount, setActiveCount] = useState(0);
   const { output, changed: outputChanged } = useAudioOutput();
 
-  useEffect(() => engine.subscribe(() => setActiveCount(engine.activeCount())), []);
+  useEffect(
+    () =>
+      engine.subscribe(() => {
+        const n = engine.activeCount();
+        if (n > 0) played.current = true;
+        setActiveCount(n);
+      }),
+    [],
+  );
 
   // In PLAY il tasto Indietro non fa nulla; in EDIT riporta a PLAY (spec §12).
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (editing) setEditing(false);
+      if (editing) {
+        setEditing(false);
+        requestSync();
+      }
       return true;
     });
     return () => sub.remove();
-  }, [editing]);
+  }, [editing, requestSync]);
 
   // Memoria occupata dai sample decodificati (float32), raddoppiata per i pad in reverse (spec §8).
   const setMemoryMB = useMemo(
@@ -82,7 +148,11 @@ export default function App() {
         onOpenSync={() => setSyncOpen(true)}
         syncBusy={sync.busy}
         syncError={!!sync.error}
-        onDone={() => setEditing(false)}
+        notice={notice}
+        onDone={() => {
+          setEditing(false);
+          requestSync();
+        }}
         onStopAll={() => {
           engine.stopAll();
           tap(haptics);
@@ -110,6 +180,7 @@ export default function App() {
         onDelete={pads.deleteSet}
         onExport={pads.exportActive}
         onImport={pads.importFile}
+        refreshKey={setsVersion}
       />
       <ChecklistSheet visible={checklistOpen} onClose={() => setChecklistOpen(false)} />
       <SyncSheet visible={syncOpen} sync={sync} onClose={() => setSyncOpen(false)} />

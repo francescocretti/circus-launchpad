@@ -1,14 +1,16 @@
-// Finestra SYNC (spec §10.2), aperta da EDIT con `⟳ SYNC`: account Google, ultima sync e SYNC NOW.
-// L'interruttore MOBILE DATA arriva con il passo 4 (§15.7).
+// Finestra SYNC (spec §10.2), aperta da EDIT con `⟳ SYNC`: account Google, ultima sync, SYNC NOW e
+// l'interruttore USE MOBILE DATA (spento di default: solo Wi-Fi).
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 import { SyncIcon } from './SyncIcon';
 import { ROOT_FOLDER_NAME } from './drive';
 import type { SyncProgress } from './run';
-import type { SyncState } from './useSync';
+import type { SyncState, SyncWait } from './useSync';
 
 const progressText = (p: SyncProgress) =>
   p.phase === 'sets' ? `Sets ${p.done}/${p.total}` : `Samples ${p.done}/${p.total}`;
+
+const WAIT_TEXT: Record<Exclude<SyncWait, null>, string> = { wifi: 'WAITING FOR WI-FI', offline: 'OFFLINE · WAITING' };
 
 function formatLastSync(iso: string | null): string {
   if (!iso) return 'Never';
@@ -18,7 +20,7 @@ function formatLastSync(iso: string | null): string {
 }
 
 export function SyncSheet({ visible, sync, onClose }: { visible: boolean; sync: SyncState; onClose: () => void }) {
-  const { account, busy, error, progress } = sync;
+  const { account, busy, error, progress, waiting } = sync;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['landscape']}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -52,12 +54,32 @@ export function SyncSheet({ visible, sync, onClose }: { visible: boolean; sync: 
             <View style={styles.row}>
               <Text style={styles.label}>LAST SYNC</Text>
               <Text style={styles.value} numberOfLines={1}>
-                {busy && progress ? progressText(progress) : busy ? 'Syncing…' : formatLastSync(sync.lastSync)}
+                {busy && progress
+                  ? progressText(progress)
+                  : busy
+                    ? 'Syncing…'
+                    : waiting
+                      ? WAIT_TEXT[waiting]
+                      : formatLastSync(sync.lastSync)}
               </Text>
-              <Pressable onPress={sync.syncNow} disabled={busy} style={[styles.btn, busy && { opacity: 0.35 }]}>
+              <Pressable onPress={sync.request} disabled={busy || !!waiting} style={[styles.btn, (busy || !!waiting) && { opacity: 0.35 }]}>
                 <Text style={styles.btnText}>SYNC NOW</Text>
               </Pressable>
             </View>
+          )}
+          {account && (
+            <Pressable
+              onPress={() => sync.setMobileData(!sync.mobileData)}
+              style={styles.row}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: sync.mobileData }}
+            >
+              <Text style={styles.label}>USE MOBILE DATA</Text>
+              <View style={{ flex: 1 }} />
+              <View style={[styles.switch, sync.mobileData && styles.switchOn]}>
+                <View style={styles.switchKnob} />
+              </View>
+            </Pressable>
           )}
           {error && <Text style={[styles.detail, { color: colors.danger }]}>{error}</Text>}
         </Pressable>
@@ -96,5 +118,9 @@ const styles = StyleSheet.create({
   value: { flex: 1, fontFamily: fonts.monoMedium, fontSize: 13, color: colors.text },
   btn: { borderWidth: 1, borderColor: '#5a534c', borderRadius: 4, paddingHorizontal: 14, height: 36, justifyContent: 'center' },
   primary: { backgroundColor: colors.text, borderColor: colors.text },
+  // Come l'interruttore NORMALIZE del pannello del pad.
+  switch: { width: 30, height: 16, borderRadius: 8, padding: 2, backgroundColor: '#5a534c', alignItems: 'flex-start' },
+  switchOn: { backgroundColor: colors.edit, alignItems: 'flex-end' },
+  switchKnob: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.text },
   btnText: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 1, color: colors.text },
 });

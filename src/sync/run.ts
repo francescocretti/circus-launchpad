@@ -41,6 +41,8 @@ export interface SyncOptions {
    */
   canReplace: (setId: string) => boolean;
   onProgress?: (p: SyncProgress) => void;
+  /** Un sample è appena arrivato sul telefono. */
+  onSample?: (id: string) => void;
 }
 
 export interface SyncResult {
@@ -56,11 +58,11 @@ export interface SyncResult {
 /** "Pixel 7a" → "PIXEL 7A", per il suffisso dei nomi doppi alla prima sync. */
 const deviceName = () => String((Platform.constants as { Model?: string }).Model ?? 'PHONE').toUpperCase();
 
-export async function runSync({ canReplace, onProgress }: SyncOptions): Promise<SyncResult> {
+export async function runSync({ canReplace, onProgress, onSample }: SyncOptions): Promise<SyncResult> {
   const folders = await ensureFolders();
-  const state = loadSyncState();
-  const base: Record<string, string> = folders.fresh ? {} : { ...state.base };
-  const commit = () => saveSyncState({ ...state, base });
+  const base: Record<string, string> = folders.fresh ? {} : { ...loadSyncState().base };
+  // Si rilegge il file a ogni salvataggio: l'interruttore MOBILE DATA può cambiare durante la sync.
+  const commit = (extra: { lastSync?: string } = {}) => saveSyncState({ ...loadSyncState(), base, ...extra });
   commit();
 
   const remote = await listRemoteSets();
@@ -155,12 +157,11 @@ export async function runSync({ canReplace, onProgress }: SyncOptions): Promise<
     const tmp = downloadTarget(id);
     await downloadSample(remoteSamples.get(id)!, tmp);
     if (!(await adoptSample(tmp, id))) throw new Error(`Downloaded sample does not match: ${id}`);
-    for (const s of sets) if (s.pads.some((p) => p.sample?.id === id) && !result.changed.includes(s.id)) result.changed.push(s.id);
+    onSample?.(id);
   }
   if (result.deferred.length === 0) for (const id of plan.trash) await trash(remoteSamples.get(id)!);
   result.missing = plan.missing;
 
-  state.lastSync = new Date().toISOString();
-  commit();
+  commit({ lastSync: new Date().toISOString() });
   return result;
 }

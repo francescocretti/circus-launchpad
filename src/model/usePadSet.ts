@@ -4,6 +4,8 @@
 // - Ogni modifica va subito su PadEngine (volume subito, il resto dal lancio successivo) e su disco
 //   (salvataggio automatico, raggruppato in 300 ms).
 // - Set multipli (spec §10, M4): cambio, creazione, rinomina, duplicazione, eliminazione, esporta/importa .circus.
+// - Sync su Drive (spec §10.2): applica i set cambiati dalla sync; un pad il cui sample sta ancora arrivando
+//   mostra LOADING… e si carica da solo appena il file c'è, senza fermare gli altri pad.
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PadEngine } from '../audio/engine';
@@ -68,7 +70,8 @@ function readInitial() {
   return { app, set, toLoad: loadedSlots(set) };
 }
 
-export function usePadSet() {
+/** `samplesMayArrive`: all'avvio una sync può portare i sample mancanti (account collegato). */
+export function usePadSet({ samplesMayArrive = false } = {}) {
   // Lettura sincrona da disco al primo render: niente setState a cascata nell'effetto di avvio.
   const [initial] = useState(readInitial);
   const [set, setSet] = useState<PadSet>(initial.set);
@@ -80,6 +83,8 @@ export function usePadSet() {
   const setRef = useRef<PadSet>(initial.set);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generation = useRef(0); // invalida le decodifiche di un set non più attivo
+  const samplesPending = useRef(samplesMayArrive); // una sync può ancora portare i sample mancanti
+  const waiting = useRef(new Set<number>()); // pad in attesa di un sample dalla sync
 
   const setStatus = (slot: number, status: PadStatus | null) =>
     setStatuses((s) => {
@@ -111,11 +116,19 @@ export function usePadSet() {
       const id = target.pads[slot - 1].sample!.id;
       let status: PadStatus | null = null;
       try {
-        if (!sampleExists(id)) throw new Error('missing file');
-        const decoded = await decodeSample(sampleUri(id));
-        if (gen !== generation.current) return;
-        engine.setBuffer(slot, decoded.buffer);
-        syncEngine(setRef.current.pads[slot - 1]);
+        if (sampleExists(id)) {
+          const decoded = await decodeSample(sampleUri(id));
+          if (gen !== generation.current) return;
+          engine.setBuffer(slot, decoded.buffer);
+          syncEngine(setRef.current.pads[slot - 1]);
+        } else if (samplesPending.current) {
+          // Il sample sta arrivando con la sync: il pad resta in LOADING… e si carica con resolveWaiting.
+          waiting.current.add(slot);
+          status = { kind: 'busy', message: 'LOADING…' };
+          await Promise.resolve();
+        } else {
+          throw new Error('missing file');
+        }
       } catch {
         status = { kind: 'error', message: 'ERROR' };
       }
@@ -140,10 +153,17 @@ export function usePadSet() {
     });
   }, []);
 
-  /** Rende attivo un set: ferma l'audio, svuota il motore e decodifica i nuovi sample. */
+  /**
+   * Rende attivo un set: ferma l'audio, svuota il motore e decodifica i nuovi sample. Con `discard` le modifiche
+   * non ancora salvate si buttano (il set su disco è appena stato sostituito dalla sync).
+   */
   const activate = useCallback(
-    (next: PadSet) => {
-      flushSave();
+    (next: PadSet, { discard = false } = {}) => {
+      if (discard && saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      } else flushSave();
+      waiting.current.clear();
       engine.stopAll();
       for (let slot = 1; slot <= PAD_COUNT; slot++) engine.setBuffer(slot, null);
       next.pads.forEach(syncEngine);
@@ -286,8 +306,71 @@ export function usePadSet() {
     [flushSave, activate],
   );
 
+  /** Dopo una sync: ricarica il set attivo se è cambiato o è stato cancellato. true se l'ha ricaricato. */
+  const applySync = useCallback(
+    (changed: string[], deleted: string[]) => {
+      const cur = setRef.current;
+      if (deleted.includes(cur.id)) {
+        let next = listSets()[0];
+        if (!next) {
+          next = newSet(newSetId(), 'SET 1');
+          saveSet(next);
+        }
+        activate(next, { discard: true });
+        return true;
+      }
+      if (changed.includes(cur.id)) {
+        const next = loadSet(cur.id);
+        if (next) {
+          activate(next, { discard: true });
+          return true;
+        }
+      }
+      return false;
+    },
+    [activate],
+  );
+
+  /** La sync può (true) o non può più (false) portare i sample mancanti. */
+  const setSamplesPending = useCallback((pending: boolean) => {
+    samplesPending.current = pending;
+  }, []);
+
+  /** Carica i pad in attesa i cui sample sono arrivati; con la sync finita, quelli ancora assenti vanno in ERROR. */
+  const resolveWaiting = useCallback(async () => {
+    const gen = generation.current;
+    for (const slot of [...waiting.current]) {
+      const id = setRef.current.pads[slot - 1].sample?.id;
+      if (!id) {
+        waiting.current.delete(slot);
+        continue;
+      }
+      if (!sampleExists(id)) {
+        if (!samplesPending.current) {
+          waiting.current.delete(slot);
+          setStatus(slot, { kind: 'error', message: 'ERROR' });
+        }
+        continue;
+      }
+      waiting.current.delete(slot);
+      try {
+        const decoded = await decodeSample(sampleUri(id));
+        if (gen !== generation.current) return;
+        engine.setBuffer(slot, decoded.buffer);
+        syncEngine(setRef.current.pads[slot - 1]);
+        setStatus(slot, null);
+      } catch {
+        if (gen === generation.current) setStatus(slot, { kind: 'error', message: 'ERROR' });
+      }
+    }
+  }, []);
+
   return {
     set,
+    flush: flushSave,
+    applySync,
+    setSamplesPending,
+    resolveWaiting,
     statuses,
     startup,
     haptics: app.haptics,

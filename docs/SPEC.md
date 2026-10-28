@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passi 1–3 (login, logica, client Drive) fatti (§15.7).
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passi 1–4 fatti, manca la prova su due telefoni e la release (§15.7).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -357,7 +357,7 @@ Design concordato con l'utente il 2026-10-28, non ancora implementato.
   `Samples/kick loop · a1b2c3.wav`, con le prime cifre dell'hash), ma i file si riconoscono dall'ID salvato nelle
   `appProperties` di Drive (id del set, hash del sample): rinominarli o spostarli dentro la cartella non rompe la sync.
 - **Quando**: all'apertura dell'app, all'uscita da EDIT (`DONE ✓`) e con `SYNC NOW`. **Mai in PLAY**, a parte la
-  sync di apertura. Di default **solo in Wi-Fi**; l'interruttore `MOBILE DATA` (OFF di default) permette i dati
+  sync di apertura. Di default **solo in Wi-Fi**; l'interruttore `USE MOBILE DATA` (spento di default) permette i dati
   mobili. La regola vale anche per `SYNC NOW`: sui dati mobili con l'interruttore su OFF il pulsante mostra
   `WAITING FOR WI-FI` e la sync parte da sola quando torna il Wi-Fi.
 - **Ordine**: prima i JSON dei set (leggeri), poi i sample mancanti. Un pad il cui sample non è ancora arrivato
@@ -387,7 +387,7 @@ Design concordato con l'utente il 2026-10-28, non ancora implementato.
     la sync, rosse se l'ultima sync è fallita (finché una sync successiva non riesce);
   - in PLAY nessun pulsante: durante la sync di apertura solo le frecce piccole che girano accanto al nome del set;
   - **finestra SYNC**: account Google (`SIGN IN` / `SIGN OUT`), `LAST SYNC 14:32` oppure il motivo dell'errore,
-    `SYNC NOW`, interruttore `MOBILE DATA OFF/ON`.
+    `SYNC NOW`, interruttore `USE MOBILE DATA` (come `NORMALIZE`, senza descrizione).
 - **Configurazione Google, a cura dell'utente** (come per il keystore: è il suo account): progetto su Google
   Cloud Console con Drive API, schermata di consenso OAuth **"In production"** (in "Testing" il login scade ogni
   7 giorni; con il solo `drive.file` non serve la verifica di Google), client OAuth Android per il package
@@ -658,6 +658,15 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
      cestinato su Drive → sparisce dal telefono, ripristinato → torna (download), cancellato sul telefono → cestino.
 4. **UI e momenti di sync**: pulsante `⟳ SYNC` e finestra SYNC, frecce in PLAY all'apertura, regola del Wi-Fi,
    aggiornamento rimandato del set attivo con `SET UPDATED`, `LOADING…` sui pad senza sample.
+   - **Fatto il 2026-10-28.** Sync all'apertura (`request()` da `App.tsx`), all'uscita da EDIT (`DONE ✓` e tasto
+     Indietro) e con `SYNC NOW`; con la rete non permessa resta in attesa (`WAITING FOR WI-FI` / `OFFLINE · WAITING`)
+     e parte da sola. Il set attivo si sostituisce solo in EDIT o nei primi 5 s dall'apertura prima di suonare;
+     altrimenti si rimanda e si riprova entrando in EDIT. Prima della sync si salvano le modifiche in sospeso; quando
+     la sync sostituisce il set attivo, il salvataggio in sospeso si scarta. I sample che arrivano caricano solo i
+     pad in attesa (`LOADING…`), senza fermare gli altri; a sync finita i mancanti vanno in `ERROR`. Frecce piccole
+     accanto al nome del set in PLAY durante la sync, `SET UPDATED` per 3 s, frecce rosse fino alla sync riuscita
+     successiva, finestra SET che si aggiorna da sola. Verificato dall'utente sul 7a: apertura, uscita da EDIT, solo
+     Wi-Fi e attesa, dati mobili, ripristino dopo "Cancella dati" (set e sample tornano da Drive).
 5. **Prova su due telefoni** con lo stesso account: backup e ripristino dopo una reinstallazione, modifica da una
    parte sola, conflitto, cancellazione in tutte e due le direzioni, prima sync con set già presenti, set attivo
    cambiato altrove, solo Wi-Fi. Poi README (sezione Sync, in inglese) e release `v1.1.0`.
