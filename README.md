@@ -13,12 +13,14 @@ Full product spec, design decisions and development status (in Italian): [`docs/
 
 You need Android 12 or newer. The app is not on the Play Store: it is installed from an APK.
 
-1. Download `circus-launchpad-release.apk` from the band's shared Drive folder.
-2. Open it on the phone. Android asks you to **allow installs from this source** (Drive, Files or the browser):
-   allow it.
+1. On the phone, download the APK of the latest release:
+   [**circus-launchpad-release.apk**](https://github.com/francescocretti/circus-launchpad/releases/latest/download/circus-launchpad-release.apk)
+   (all versions are on the [Releases page](https://github.com/francescocretti/circus-launchpad/releases)).
+2. Open it. Android asks you to **allow installs from this source** (the browser or Files): allow it.
 3. **Play Protect** may warn that the app is unknown. Choose **Install anyway**. This happens because the app does
    not come from the Play Store.
-4. Updates work the same way: install the new APK over the old one. Your sets and samples are kept.
+4. Updates work the same way: download the APK of the new release and install it over the old one. Your sets and
+   samples are kept.
 
 ## The two modes
 

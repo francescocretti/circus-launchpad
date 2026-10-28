@@ -474,8 +474,9 @@ M0 deve dimostrare che due pad toccati insieme partono entrambi.
   disinstallare): è un passo da fare con l'utente prima del primo APK distribuito. **Non riusare** il keystore di Tessere.
 - Package Android: `io.github.francescocretti.circuslaunchpad`.
 - Distribuzione (D-33): **release su GitHub nel repository privato** come archivio (tag `vX.Y.Z`, titolo "Circus
-  Launchpad X.Y.Z", note in italiano, APK allegato), e **APK condiviso con la band** tramite cartella Drive o chat.
-  Istruzioni di installazione (origini sconosciute, Play Protect) nel README.
+  Launchpad X.Y.Z", note in italiano, APK allegato). La band scarica l'APK **dalla pagina Releases**: il README linka direttamente
+  `releases/latest/download/circus-launchpad-release.apk`. Istruzioni di installazione (origini sconosciute, Play
+  Protect) nel README.
 - Keystore di release creato dall'utente il 2026-10-28: `~/.android/keystores/circus-launchpad-release.jks`, alias `circus`,
   certificato SHA-256 `F5:C8:96:91:…:E8:C5:94:4B`. **Da conservare con la password** (backup dell'utente). Il
   passaggio dalla firma di debug a quella di release richiede **una disinstallazione** sui telefoni che avevano le
@@ -586,7 +587,7 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 | P-3 | Telefoni della band oltre al Pixel 7a ("o simili"). | Android 12+, layout in dp che si adatta. |
 | P-4 | EDIT: spostare o scambiare i pad. | Non ancora richiesto. |
 | P-5 | ~~Libreria ZIP~~: risolto con un writer/reader ZIP interno (M4). | — |
-| P-6 | ~~Distribuzione~~: release su GitHub nel repo privato (archivio) e APK su Drive o in chat (D-33). | — |
+| P-6 | ~~Distribuzione~~: release su GitHub con l'APK allegato, da cui la band lo scarica (D-33). | — |
 | P-7 | ~~Icona~~: marchio a 4 barrette (D-32), generata da `scripts/make-icons.sh`. | — |
 | P-8 | Marchio "Launchpad" (Novation): nessun problema per un APK privato, da rivalutare se si pubblica su uno store. | — |
 
@@ -632,7 +633,7 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-30 | Fade in/out a valori predefiniti OFF/1/3/5/7 s, scelti con un tocco: i − e + erano scomodi; slider e scorrimento sulla casella sono stati scartati (impreciso il primo, gesto nascosto il secondo). Lo 0 si legge `OFF`, non con un bordo rosso: il rosso significa stop o errore. |
 | D-31 | I set si gestiscono in una finestra SET aperta dal nome del set nella barra di EDIT; le azioni valgono per il set attivo. |
 | D-32 | Icona: le 4 barrette del marchio (rosso, arancio, giallo, crema) su fondo carbone; icona adattiva e monocromatica. |
-| D-33 | Distribuzione: release su GitHub nel repo privato come archivio, APK alla band via Drive o chat. |
+| D-33 | Distribuzione: release su GitHub con l'APK allegato; la band lo scarica dalla pagina Releases (link diretto nel README). |
 | D-34 | Interfaccia tutta in inglese (prima era mista). Le etichette italiane citate nelle sezioni precedenti corrispondono a: CARICA/SOSTITUISCI → LOAD/REPLACE, ASCOLTA → PREVIEW, SVUOTA → CLEAR, CONFERMA → CONFIRM, MODALITÀ → MODE, DIREZIONE AVANTI → DIRECTION FWD, AL RITOCCO RIPARTE/IGNORA → ON RETRIGGER RESTART/IGNORE, NORMALIZZA → NORMALIZE, CORREZIONE → TRIM, VIBRAZIONE → HAPTICS, FINE → DONE, VOCI → VOICES, CAVO → WIRED, ALTOPARLANTE → SPEAKER, TIENI PREMUTO PER FERMARE → HOLD TO STOP, DUPLICA/ESPORTA/ELIMINA → DUPLICATE/EXPORT/DELETE, NUOVO SET → NEW SET, IMPORTA DA FILE → IMPORT FROM FILE, CHECKLIST DA PALCO → STAGE CHECKLIST. Numeri con il punto decimale. Anche il README (pubblico) è in inglese, come guida d'uso con screenshot in `docs/screenshots/`. Commenti nel codice, spec e AGENTS restano in italiano. |
 | D-35 | Lo stream audio parte all'apertura dell'app e resta sempre attivo, anche senza pad in riproduzione. La libreria si riprende da sola da una disconnessione (cambio di uscita, app congelata in background, stream esclusivo preso da un'altra app) solo se lo stream sta girando: uno stream aperto ma mai avviato restava muto per sempre (bug trovato il 2026-10-28 dopo il selettore di file). In più un watchdog ricrea il contesto se il clock audio resta fermo per 2 s; le voci in corso si perdono, i buffer restano. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |
