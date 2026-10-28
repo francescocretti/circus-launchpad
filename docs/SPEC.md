@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** progettato (§10.2, D-36), da iniziare (§15.7).
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passo 1 (login) fatto (§15.7).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -625,12 +625,19 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
   prima del primo pad.
 - Release GitHub `v1.0.0` con l'APK allegato, repo reso pubblico (D-33).
 
-### 15.7 Piano M6 — Sync su Drive (da iniziare)
+### 15.7 Piano M6 — Sync su Drive (in corso)
 
 1. **Configurazione e login.** L'utente crea progetto, consenso OAuth e client Android (§10.2). Si sceglie la
    libreria di login verificando la documentazione di Expo SDK 58 (candidate: Google Sign-In nativo con config
    plugin, oppure `expo-auth-session`) e il tipo di rete con `expo-network`. Uscita: login e logout funzionanti sul
    7a, cartella `Circus Launchpad Backup` creata su Drive.
+   - **Fatto il 2026-10-28.** Libreria `react-native-nitro-google-signin` (Credential Manager + AuthorizationClient;
+     la versione gratuita di `@react-native-google-signin` usa il vecchio SDK deprecato). Il suo config plugin serve
+     solo a iOS e senza `iosUrlScheme` va in errore, quindi non è in `app.json`: su Android basta l'autolinking. Nel
+     codice c'è solo l'ID del client Web (`src/sync/auth.ts`). Consenso OAuth in produzione (in "Testing" il
+     permesso Drive dava 403 `access_denied`). Finestra SYNC con il solo account, pulsante `SYNC` in EDIT con
+     l'icona a due frecce in SVG (`react-native-svg`). Verificato dall'utente: login, login che resta dopo il
+     riavvio, logout, cartella con `Sets/` e `Samples/` creata una sola volta.
 2. **Logica di sync pura** (`src/sync/`): dato lo stato locale, lo stato di Drive e l'ultima sync, calcola il piano
    (carica, scarica, conflitto, cestina, unione della prima sync, cartella mancante). Nessun accesso a rete o
    disco, così si prova con `npm test`: un test per ogni caso di §10.2.

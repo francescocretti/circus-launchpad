@@ -14,6 +14,8 @@ import { tap } from './src/haptics';
 import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
 import { TopBar } from './src/play/TopBar';
+import { SyncSheet } from './src/sync/SyncSheet';
+import { useSync } from './src/sync/useSync';
 import { useAudioOutput } from './src/play/useAudioOutput';
 import { colors } from './src/theme';
 
@@ -32,6 +34,8 @@ export default function App() {
   const [selected, setSelected] = useState<number | null>(null);
   const [setsOpen, setSetsOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const sync = useSync();
   const [activeCount, setActiveCount] = useState(0);
   const { output, changed: outputChanged } = useAudioOutput();
 
@@ -74,6 +78,9 @@ export default function App() {
         onEdit={() => setEditing(true)}
         onOpenSets={() => setSetsOpen(true)}
         onOpenChecklist={() => setChecklistOpen(true)}
+        onOpenSync={() => setSyncOpen(true)}
+        syncBusy={sync.busy}
+        syncError={!!sync.error}
         onDone={() => setEditing(false)}
         onStopAll={() => {
           engine.stopAll();
@@ -104,6 +111,7 @@ export default function App() {
         onImport={pads.importFile}
       />
       <ChecklistSheet visible={checklistOpen} onClose={() => setChecklistOpen(false)} />
+      <SyncSheet visible={syncOpen} sync={sync} onClose={() => setSyncOpen(false)} />
     </View>
   );
 }

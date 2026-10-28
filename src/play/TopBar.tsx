@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AudioOutput, OutputKind } from '../../modules/audio-output/src';
+import { SyncIcon } from '../sync/SyncIcon';
 import { colors, fonts, layout } from '../theme';
 
 const STOP_HOLD_MS = 300;
@@ -20,11 +21,15 @@ interface Props {
   onEdit: () => void;
   onOpenSets: () => void;
   onOpenChecklist: () => void;
+  onOpenSync: () => void;
+  /** Sync in corso e ultimo esito (spec §10.2). */
+  syncBusy: boolean;
+  syncError: boolean;
   onDone: () => void;
   onStopAll: () => void;
 }
 
-export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onDone, onStopAll }: Props) {
+export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onOpenSync, syncBusy, syncError, onDone, onStopAll }: Props) {
   return (
     <View style={styles.bar}>
       {editing ? (
@@ -63,6 +68,10 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, output
         <>
           <Pressable onPress={onOpenChecklist} style={styles.outlineBtn}>
             <Text style={styles.btnText}>CHECKLIST</Text>
+          </Pressable>
+          <Pressable onPress={onOpenSync} style={[styles.outlineBtn, styles.syncBtn]} accessibilityLabel="Sync">
+            <SyncIcon busy={syncBusy} error={syncError} size={15} />
+            <Text style={[styles.btnText, syncError && { color: colors.danger }]}>SYNC</Text>
           </Pressable>
           <Pressable onPress={onToggleHaptics} style={styles.outlineBtn} accessibilityRole="switch" accessibilityState={{ checked: haptics }}>
             <Text style={styles.btnText}>HAPTICS {haptics ? 'ON' : 'OFF'}</Text>
@@ -189,6 +198,7 @@ const styles = StyleSheet.create({
   muted: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.9, color: colors.textMuted },
   setName: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 0.9, color: colors.text },
   outlineBtn: { borderWidth: 1, borderColor: '#5a534c', borderRadius: 4, paddingHorizontal: 12, paddingVertical: 4 },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   doneBtn: { backgroundColor: colors.edit, borderColor: colors.edit },
   btnText: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 1.3, color: colors.text },
   output: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, height: 24, borderRadius: 4 },
