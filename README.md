@@ -3,8 +3,8 @@
 An open-source sample launcher for Android, built for playing live: for anyone who needs to fire sounds on cue, on
 stage or anywhere else. It has 12 big pads, and each pad holds one audio file from the phone and starts the moment you
 touch it. A pad can play as a one shot or as a seamless loop, forwards or in reverse. Loudness is matched
-automatically, every pad has its own fades, and you can keep one set of pads per show and move sets between phones as
-a single `.circus` file.
+automatically, every pad has its own fades, and you can keep one set of pads per show. Sets move between phones as a
+single `.circus` file, or stay backed up and in sync across your phones through your own Google Drive.
 
 ![The pad grid while playing: two loops and a one shot running](docs/screenshots/play.png)
 
@@ -98,6 +98,36 @@ bar (`SET … ▾`) to manage them.
 
 Samples shared by several pads or sets are stored only once.
 
+## Sync with Google Drive
+
+Sync keeps a backup of all your sets and samples in your own Google Drive, and keeps them the same on every phone
+where you sign in with the same Google account. It is optional: the app works the same without it.
+
+![The SYNC window](docs/screenshots/sync.png)
+
+- **Sign in**: in EDIT, tap `SYNC`, then `SIGN IN` and pick your Google account. The app creates a
+  `Circus Launchpad Backup` folder in your Drive, with `Sets` and `Samples` inside. It can only see the files it
+  creates, never the rest of your Drive.
+- **When it syncs**: when the app opens, when you leave EDIT with `DONE ✓`, and when you tap `SYNC NOW`. The arrows
+  on the `SYNC` button spin while it works and turn red if the last sync failed. In PLAY they show up small next to
+  the set name.
+- **Never under your fingers**: while you are playing, the active set is never replaced. If a newer version arrives
+  from another phone, it is applied as soon as you enter EDIT, and the bar shows `SET UPDATED`.
+- **Wi-Fi only by default.** Turn on `USE MOBILE DATA` to sync on mobile data too. When the network isn't allowed,
+  the window shows `WAITING FOR WI-FI` and the sync starts by itself as soon as it is.
+- **New samples** download after the sets. Until a sample arrives, its pad shows `LOADING…`.
+- **Nothing is lost**:
+  - if the same set was changed on two phones, both versions are kept: the second phone to sync keeps its own as
+    `… (CONFLICT)`;
+  - deleting a set on one phone deletes it on the others too, and moves it to the Drive trash, where you can restore
+    it for 30 days. Moving a set's file to the trash in Drive deletes it from your phones;
+  - the first time you sign in on a phone that already has sets, they are merged with the ones in Drive. A set with
+    the same name as one in Drive gets the phone's model added, for example `SET 1 (PIXEL 7A)`.
+- **Restoring a backup**: install the app, sign in, and your sets and samples come back.
+- Sync works with one Google account. To give a set to a bandmate, use `EXPORT` (see [Sets](#sets)).
+
+Privacy policy: <https://francescocretti.github.io/circus-launchpad/privacy.html>.
+
 ## Audio output
 
 The top bar always shows where the sound is going:
@@ -134,10 +164,21 @@ React Native with Expo (development build, not Expo Go: the audio engine is nati
 ```bash
 npm install
 npx expo run:android            # native development build
-npm test                        # audio engine, gestures and .circus format tests
+npm test                        # audio engine, gestures, .circus format and sync tests
 npm run typecheck && npm run lint
 npm run apk                     # signed APK: android/app/build/outputs/apk/release/circus-launchpad-release.apk
 ```
 
 Release signing reads `CIRCUS_KEYSTORE_FILE`, `CIRCUS_KEYSTORE_PASSWORD`, `CIRCUS_KEY_ALIAS` and
 `CIRCUS_KEY_PASSWORD` from `~/.gradle/gradle.properties`. Without them, the APK is signed with the debug key.
+
+Google Drive sign-in only works for APKs signed with a key registered in the project's Google Cloud project. If you
+build the app yourself, sign-in fails until you set up your own:
+
+1. Create a Google Cloud project and enable the **Google Drive API**.
+2. In **Google Auth Platform**, set up the consent screen (External, published **In production**) with the single
+   scope `https://www.googleapis.com/auth/drive.file`.
+3. Create an **Android** OAuth client for package `io.github.francescocretti.circuslaunchpad` and the SHA-1 of your
+   signing key (`apksigner verify --print-certs` on your APK), one per key, and a **Web application** client.
+4. Put the Web client ID in `WEB_CLIENT_ID` in [`src/sync/auth.ts`](src/sync/auth.ts). The Android client IDs are
+   not used in code: Google matches them by package name and signing key.
