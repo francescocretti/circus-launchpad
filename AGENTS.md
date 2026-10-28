@@ -4,7 +4,8 @@ Sample launcher Android per uso dal vivo (12 pad, one shot / loop / reverse). **
 [`docs/SPEC.md`](docs/SPEC.md)**: è la fonte di verità per prodotto, design, architettura, piano di sviluppo
 (milestone M0…M5) e punti aperti. Se il codice e la spec divergono, chiedi all'utente quale aggiornare.
 
-- Lingua con l'utente: italiano. Commenti nel codice: italiano (come nel progetto gemello `../tessere`).
+- Lingua con l'utente: italiano. Commenti nel codice, spec e AGENTS: italiano (come nel progetto gemello
+  `../tessere`). **Interfaccia e README: sempre inglese** (D-34).
 - Solo Android (API 31+, arm64). Dispositivo di riferimento: Pixel 7a in orizzontale.
 - Audio: `react-native-audio-api` → serve una build nativa (`npx expo run:android`), non Expo Go.
 - Test: `npm test` (runner di Node su `src/**/__tests__/*.test.ts`; negli import dei moduli testati usare

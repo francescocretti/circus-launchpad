@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5); prossimo: M5.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -473,7 +473,13 @@ M0 deve dimostrare che due pad toccati insieme partono entrambi.
   **Il keystore di release va creato una volta e conservato** (perderlo impedisce gli aggiornamenti senza
   disinstallare): è un passo da fare con l'utente prima del primo APK distribuito. **Non riusare** il keystore di Tessere.
 - Package Android: `io.github.francescocretti.circuslaunchpad`.
-- Distribuzione: GitHub Releases o invio diretto dell'APK (da decidere: §16).
+- Distribuzione (D-33): **release su GitHub nel repository privato** come archivio (tag `vX.Y.Z`, titolo "Circus
+  Launchpad X.Y.Z", note in italiano, APK allegato), e **APK condiviso con la band** tramite cartella Drive o chat.
+  Istruzioni di installazione (origini sconosciute, Play Protect) nel README.
+- Keystore di release creato dall'utente il 2026-10-28: `~/.android/keystores/circus-launchpad-release.jks`, alias `circus`,
+  certificato SHA-256 `F5:C8:96:91:…:E8:C5:94:4B`. **Da conservare con la password** (backup dell'utente). Il
+  passaggio dalla firma di debug a quella di release richiede **una disinstallazione** sui telefoni che avevano le
+  build di prova: prima conviene esportare i set.
 
 ## 15. Piano di sviluppo
 
@@ -557,6 +563,20 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 - All'avvio e dopo l'eliminazione di un set si cancellano le copie dei sample non più usate e i file temporanei.
 - Provato dall'utente su Pixel 7a: tutto ok.
 
+### 15.6 Stato M5 (completato il 2026-10-28)
+
+- **Uscita audio**: modulo nativo locale `modules/audio-output` (Kotlin, `AudioDeviceCallback` e
+  `getAudioDevicesForAttributes` su API 33+), hook `src/play/useAudioOutput.ts`, indicatore in barra: verde per
+  USB-C e cavo, ambra per l'altoparlante, rosso per `BLUETOOTH · HIGH LATENCY`; un cambio si evidenzia per 6 s
+  (`OUTPUT → …`). Verificato su device dall'utente con altoparlante, adattatore USB-C e Bluetooth.
+- **Icona** (D-32), **checklist da palco** in app (EDIT → `CHECKLIST`) e nel README, istruzioni di installazione.
+- **Versione 1.0.0** (versionCode 1), APK firmato con il keystore di release creato dall'utente (verificato con
+  `apksigner`).
+- Interfaccia e README in inglese (D-34); README come guida d'uso con screenshot.
+- Stream audio sempre attivo e watchdog del clock (D-35), verificati dall'utente anche collegando l'adattatore
+  prima del primo pad.
+- Release GitHub `v1.0.0` nel repo privato con l'APK allegato (D-33).
+
 ## 16. Punti aperti
 
 | # | Questione | Default attuale |
@@ -566,8 +586,8 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 | P-3 | Telefoni della band oltre al Pixel 7a ("o simili"). | Android 12+, layout in dp che si adatta. |
 | P-4 | EDIT: spostare o scambiare i pad. | Non ancora richiesto. |
 | P-5 | ~~Libreria ZIP~~: risolto con un writer/reader ZIP interno (M4). | — |
-| P-6 | Canale di distribuzione dell'APK (GitHub Releases come Tessere?). | Da decidere in M5. |
-| P-7 | Icona dell'app. | Placeholder di Expo. |
+| P-6 | ~~Distribuzione~~: release su GitHub nel repo privato (archivio) e APK su Drive o in chat (D-33). | — |
+| P-7 | ~~Icona~~: marchio a 4 barrette (D-32), generata da `scripts/make-icons.sh`. | — |
 | P-8 | Marchio "Launchpad" (Novation): nessun problema per un APK privato, da rivalutare se si pubblica su uno store. | — |
 
 ## 17. Fuori scope (v1)
@@ -611,4 +631,8 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-29 | EDIT: la griglia resta a grandezza reale e un tocco su un pad apre una finestra con le sue impostazioni (non la mini-griglia con pannello fisso del prototipo). |
 | D-30 | Fade in/out a valori predefiniti OFF/1/3/5/7 s, scelti con un tocco: i − e + erano scomodi; slider e scorrimento sulla casella sono stati scartati (impreciso il primo, gesto nascosto il secondo). Lo 0 si legge `OFF`, non con un bordo rosso: il rosso significa stop o errore. |
 | D-31 | I set si gestiscono in una finestra SET aperta dal nome del set nella barra di EDIT; le azioni valgono per il set attivo. |
+| D-32 | Icona: le 4 barrette del marchio (rosso, arancio, giallo, crema) su fondo carbone; icona adattiva e monocromatica. |
+| D-33 | Distribuzione: release su GitHub nel repo privato come archivio, APK alla band via Drive o chat. |
+| D-34 | Interfaccia tutta in inglese (prima era mista). Le etichette italiane citate nelle sezioni precedenti corrispondono a: CARICA/SOSTITUISCI → LOAD/REPLACE, ASCOLTA → PREVIEW, SVUOTA → CLEAR, CONFERMA → CONFIRM, MODALITÀ → MODE, DIREZIONE AVANTI → DIRECTION FWD, AL RITOCCO RIPARTE/IGNORA → ON RETRIGGER RESTART/IGNORE, NORMALIZZA → NORMALIZE, CORREZIONE → TRIM, VIBRAZIONE → HAPTICS, FINE → DONE, VOCI → VOICES, CAVO → WIRED, ALTOPARLANTE → SPEAKER, TIENI PREMUTO PER FERMARE → HOLD TO STOP, DUPLICA/ESPORTA/ELIMINA → DUPLICATE/EXPORT/DELETE, NUOVO SET → NEW SET, IMPORTA DA FILE → IMPORT FROM FILE, CHECKLIST DA PALCO → STAGE CHECKLIST. Numeri con il punto decimale. Anche il README (pubblico) è in inglese, come guida d'uso con screenshot in `docs/screenshots/`. Commenti nel codice, spec e AGENTS restano in italiano. |
+| D-35 | Lo stream audio parte all'apertura dell'app e resta sempre attivo, anche senza pad in riproduzione. La libreria si riprende da sola da una disconnessione (cambio di uscita, app congelata in background, stream esclusivo preso da un'altra app) solo se lo stream sta girando: uno stream aperto ma mai avviato restava muto per sempre (bug trovato il 2026-10-28 dopo il selettore di file). In più un watchdog ricrea il contesto se il clock audio resta fermo per 2 s; le voci in corso si perdono, i buffer restano. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |

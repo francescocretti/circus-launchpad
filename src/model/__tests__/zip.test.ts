@@ -53,9 +53,9 @@ test('un byte alterato fa fallire il controllo CRC', () => {
   const zip = memSource(bytes);
   const [entry] = readZipIndex(zip);
   bytes[entry.dataOffset + 10] ^= 0xff;
-  assert.throws(() => extractEntry(zip, entry, memSink().sink), /danneggiato/);
+  assert.throws(() => extractEntry(zip, entry, memSink().sink), /corrupted/);
 });
 
 test('file che non è uno ZIP', () => {
-  assert.throws(() => readZipIndex(memSource(random(100))), /non è un file .circus/);
+  assert.throws(() => readZipIndex(memSource(random(100))), /not a valid .circus file/);
 });

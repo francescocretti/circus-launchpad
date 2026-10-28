@@ -32,7 +32,7 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
         </View>
         <Text style={[styles.label, styles.emptyLabel]}>{status?.message ?? 'EMPTY'}</Text>
         <Text style={[styles.file, { color: colors.textDisabled }]}>
-          {editing ? 'tocca per caricare' : 'carica in EDIT'}
+          {editing ? 'tap to load' : 'load in EDIT'}
         </Text>
       </View>
     );
@@ -56,7 +56,7 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
     }
   }
   const ledOn = playing || (fading && blinkOn);
-  if (status) time = status.kind === 'error' ? 'ERRORE' : status.message;
+  if (status) time = status.kind === 'error' ? 'ERROR' : status.message;
 
   return (
     <View
@@ -109,7 +109,7 @@ function PadViewImpl({ pad, snap, hold, hint, blinkOn, editing, status }: PadVie
       )}
       {hint && (
         <View style={styles.hint}>
-          <Text style={styles.hintText}>TIENI PREMUTO PER FERMARE</Text>
+          <Text style={styles.hintText}>HOLD TO STOP</Text>
         </View>
       )}
       {hold !== null && (

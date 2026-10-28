@@ -41,7 +41,7 @@ function ascii(name: string): Uint8Array {
   const out = new Uint8Array(name.length);
   for (let i = 0; i < name.length; i++) {
     const c = name.charCodeAt(i);
-    if (c > 0x7e || c < 0x20) throw new Error(`nome non ASCII nello ZIP: ${name}`);
+    if (c > 0x7e || c < 0x20) throw new Error(`non-ASCII name in ZIP: ${name}`);
     out[i] = c;
   }
   return out;
@@ -102,7 +102,7 @@ export function readZipIndex(src: ZipSource): ZipEntry[] {
       break;
     }
   }
-  if (eocd < 0) throw new Error('non è un file .circus valido');
+  if (eocd < 0) throw new Error('not a valid .circus file');
   const count = tv.getUint16(eocd + 10, true);
   const cdSize = tv.getUint32(eocd + 12, true);
   const cdOffset = tv.getUint32(eocd + 16, true);
@@ -111,7 +111,7 @@ export function readZipIndex(src: ZipSource): ZipEntry[] {
   const entries: ZipEntry[] = [];
   let p = 0;
   for (let n = 0; n < count; n++) {
-    if (cv.getUint32(p, true) !== 0x02014b50) throw new Error('indice dello ZIP danneggiato');
+    if (cv.getUint32(p, true) !== 0x02014b50) throw new Error('corrupted ZIP index');
     const method = cv.getUint16(p + 10, true);
     const crc = cv.getUint32(p + 16, true);
     const size = cv.getUint32(p + 24, true);
@@ -120,7 +120,7 @@ export function readZipIndex(src: ZipSource): ZipEntry[] {
     const commentLen = cv.getUint16(p + 32, true);
     const localOffset = cv.getUint32(p + 42, true);
     const name = String.fromCharCode(...cd.subarray(p + 46, p + 46 + nameLen));
-    if (method !== 0) throw new Error(`entry compressa non supportata: ${name}`);
+    if (method !== 0) throw new Error(`unsupported compressed entry: ${name}`);
     const lh = src.read(localOffset, 30);
     const lv = new DataView(lh.buffer, lh.byteOffset, lh.byteLength);
     const dataOffset = localOffset + 30 + lv.getUint16(26, true) + lv.getUint16(28, true);
@@ -138,5 +138,5 @@ export function extractEntry(src: ZipSource, entry: ZipEntry, sink: ZipSink) {
     crc = crcUpdate(crc, chunk);
     sink.write(chunk);
   }
-  if (crc !== entry.crc) throw new Error(`file danneggiato: ${entry.name}`);
+  if (crc !== entry.crc) throw new Error(`corrupted file: ${entry.name}`);
 }

@@ -53,7 +53,7 @@ export type PadStatus = { kind: 'busy' | 'error'; message: string };
 
 const loadedSlots = (set: PadSet) => set.pads.filter((p) => p.sample).map((p) => p.slot);
 const busyStatuses = (slots: number[]) =>
-  Object.fromEntries(slots.map((slot) => [slot, { kind: 'busy', message: 'CARICAMENTO…' } as PadStatus]));
+  Object.fromEntries(slots.map((slot) => [slot, { kind: 'busy', message: 'LOADING…' } as PadStatus]));
 
 function readInitial() {
   const app = loadAppState() ?? { lastSetId: DEFAULT_SET_ID, haptics: true };
@@ -111,13 +111,13 @@ export function usePadSet() {
       const id = target.pads[slot - 1].sample!.id;
       let status: PadStatus | null = null;
       try {
-        if (!sampleExists(id)) throw new Error('file mancante');
+        if (!sampleExists(id)) throw new Error('missing file');
         const decoded = await decodeSample(sampleUri(id));
         if (gen !== generation.current) return;
         engine.setBuffer(slot, decoded.buffer);
         syncEngine(setRef.current.pads[slot - 1]);
       } catch {
-        status = { kind: 'error', message: 'ERRORE' };
+        status = { kind: 'error', message: 'ERROR' };
       }
       if (gen !== generation.current) return;
       setStatus(slot, status);
@@ -178,11 +178,11 @@ export function usePadSet() {
   const load = useCallback(
     async (slot: number, pickedUri: string, fileName: string) => {
       try {
-        setStatus(slot, { kind: 'busy', message: 'COPIA…' });
+        setStatus(slot, { kind: 'busy', message: 'COPYING…' });
         const id = await importSample(pickedUri, fileName);
-        setStatus(slot, { kind: 'busy', message: 'DECODIFICA…' });
+        setStatus(slot, { kind: 'busy', message: 'DECODING…' });
         const decoded = await decodeSample(sampleUri(id));
-        setStatus(slot, { kind: 'busy', message: 'ANALISI…' });
+        setStatus(slot, { kind: 'busy', message: 'ANALYZING…' });
         // Lascia disegnare il messaggio prima del calcolo, che blocca il thread JS per qualche secondo.
         await new Promise((r) => setTimeout(r, 30));
         const loud = analyzeSample(decoded.buffer);
@@ -200,7 +200,7 @@ export function usePadSet() {
         });
         setStatus(slot, null);
       } catch (e) {
-        setStatus(slot, { kind: 'error', message: `ERRORE: ${e instanceof Error ? e.message : String(e)}` });
+        setStatus(slot, { kind: 'error', message: `ERROR: ${e instanceof Error ? e.message : String(e)}` });
       }
     },
     [update],
@@ -257,7 +257,7 @@ export function usePadSet() {
   const duplicateSet = useCallback(() => {
     flushSave();
     const cur = setRef.current;
-    saveSet({ ...cur, id: newSetId(), name: `${cur.name} COPIA`.slice(0, MAX_SET_NAME) });
+    saveSet({ ...cur, id: newSetId(), name: `${cur.name} COPY`.slice(0, MAX_SET_NAME) });
   }, [flushSave]);
 
   /** Elimina il set attivo e passa a un altro. Non si può eliminare l'unico set. */
@@ -275,7 +275,7 @@ export function usePadSet() {
   const exportActive = useCallback(async () => {
     flushSave();
     const uri = exportSet(setRef.current);
-    await Sharing.shareAsync(uri, { mimeType: 'application/zip', dialogTitle: `Esporta ${setRef.current.name}` });
+    await Sharing.shareAsync(uri, { mimeType: 'application/zip', dialogTitle: `Export ${setRef.current.name}` });
   }, [flushSave]);
 
   const importFile = useCallback(

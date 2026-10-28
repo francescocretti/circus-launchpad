@@ -27,7 +27,7 @@ const stats = (set: PadSet) => {
     (n, p) => n + (p.sample!.durationSec * p.sample!.sampleRate * p.sample!.channels * 4 * (p.reverse ? 2 : 1)) / 1e6,
     0,
   );
-  return `${loaded.length} pad · ${Math.round(mb)} MB`;
+  return `${loaded.length} ${loaded.length === 1 ? 'pad' : 'pads'} · ${Math.round(mb)} MB`;
 };
 
 /** Esegue un'operazione lunga e sincrona dopo aver lasciato disegnare il messaggio di attesa. */
@@ -98,7 +98,7 @@ export function SetSheet(props: Props) {
   const importFromFile = async () => {
     const res = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
     if (res.canceled) return;
-    run('IMPORTAZIONE…', () => props.onImport(res.assets[0].uri));
+    run('IMPORTING…', () => props.onImport(res.assets[0].uri));
   };
 
   const close = () => {
@@ -113,9 +113,9 @@ export function SetSheet(props: Props) {
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.header}>
             <Text style={styles.title}>SET</Text>
-            <Text style={styles.hint}>Tocca un set per renderlo attivo. Le azioni valgono per il set attivo.</Text>
+            <Text style={styles.hint}>Tap a set to make it active. Actions apply to the active set.</Text>
             <View style={{ flex: 1 }} />
-            <Btn label="CHIUDI" tone="confirm" onPress={close} disabled={!!busy} />
+            <Btn label="CLOSE" tone="confirm" onPress={close} disabled={!!busy} />
           </View>
 
           <ScrollView style={styles.list} contentContainerStyle={{ gap: 6 }} keyboardShouldPersistTaps="handled">
@@ -138,7 +138,7 @@ export function SetSheet(props: Props) {
                       maxLength={MAX_SET_NAME}
                       autoCapitalize="characters"
                       autoCorrect={false}
-                      accessibilityLabel="Nome del set"
+                      accessibilityLabel="Set name"
                       style={styles.nameInput}
                     />
                   ) : (
@@ -147,16 +147,16 @@ export function SetSheet(props: Props) {
                   <Text style={styles.stats}>{stats(shown)}</Text>
                   {isActive && (
                     <View style={styles.actions}>
-                      <Btn label="DUPLICA" onPress={() => run('DUPLICAZIONE…', props.onDuplicate)} disabled={!!busy} />
-                      <Btn label="ESPORTA" onPress={() => run('ESPORTAZIONE…', props.onExport)} disabled={!!busy} />
+                      <Btn label="DUPLICATE" onPress={() => run('DUPLICATING…', props.onDuplicate)} disabled={!!busy} />
+                      <Btn label="EXPORT" onPress={() => run('EXPORTING…', props.onExport)} disabled={!!busy} />
                       <Btn
-                        label={confirmDelete ? 'SICURO?' : 'ELIMINA'}
+                        label={confirmDelete ? 'SURE?' : 'DELETE'}
                         tone={confirmDelete ? 'danger' : undefined}
                         disabled={!!busy || list.length < 2}
                         onPress={() => {
                           if (!confirmDelete) return setConfirmDelete(true);
                           setConfirmDelete(false);
-                          run('ELIMINAZIONE…', props.onDelete);
+                          run('DELETING…', props.onDelete);
                         }}
                       />
                     </View>
@@ -167,11 +167,11 @@ export function SetSheet(props: Props) {
           </ScrollView>
 
           <View style={styles.footer}>
-            <Btn label="+ NUOVO SET" tone="primary" onPress={() => run('CREAZIONE…', props.onCreate)} disabled={!!busy} />
-            <Btn label="IMPORTA DA FILE…" onPress={importFromFile} disabled={!!busy} />
+            <Btn label="+ NEW SET" tone="primary" onPress={() => run('CREATING…', props.onCreate)} disabled={!!busy} />
+            <Btn label="IMPORT FROM FILE…" onPress={importFromFile} disabled={!!busy} />
             <View style={{ flex: 1 }} />
             {busy && <Text style={[styles.hint, { color: colors.edit }]}>{busy}</Text>}
-            {error && <Text style={[styles.hint, { color: colors.danger }]} numberOfLines={2}>ERRORE: {error}</Text>}
+            {error && <Text style={[styles.hint, { color: colors.danger }]} numberOfLines={2}>ERROR: {error}</Text>}
           </View>
         </Pressable>
       </Pressable>

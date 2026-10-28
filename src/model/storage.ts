@@ -171,14 +171,14 @@ export function exportSet(set: PadSet): string {
 
 /**
  * Importa un file .circus come **nuovo** set (non sovrascrive mai): copia i sample che mancano e restituisce il
- * set già salvato. Se il nome è già usato aggiunge "(IMPORTATO)".
+ * set già salvato. Se il nome è già usato aggiunge "(IMPORTED)".
  */
 export function importSet(uri: string): PadSet {
   const src = fileSource(new File(uri));
   try {
     const index = readZipIndex(src);
     const setEntry = index.find((e) => e.name === 'set.json');
-    if (!setEntry) throw new Error('manca set.json: non è un file .circus');
+    if (!setEntry) throw new Error('set.json missing: not a .circus file');
     const tmpJson = new File(Paths.cache, 'import-set.json');
     const jsonSink = fileSink(tmpJson);
     try {
@@ -188,7 +188,7 @@ export function importSet(uri: string): PadSet {
     }
     const imported = JSON.parse(tmpJson.textSync()) as PadSet;
     tmpJson.delete();
-    if (imported.schemaVersion !== 1 || !Array.isArray(imported.pads)) throw new Error('versione del file non supportata');
+    if (imported.schemaVersion !== 1 || !Array.isArray(imported.pads)) throw new Error('unsupported file version');
 
     const dir = samplesDir();
     ensureDir(dir);
@@ -207,7 +207,7 @@ export function importSet(uri: string): PadSet {
     }
 
     const names = new Set(listSets().map((x) => x.name));
-    const name = names.has(imported.name) ? `${imported.name} (IMPORTATO)` : imported.name;
+    const name = names.has(imported.name) ? `${imported.name} (IMPORTED)` : imported.name;
     const set: PadSet = { ...imported, id: newSetId(), name };
     saveSet(set);
     return loadSet(set.id)!;

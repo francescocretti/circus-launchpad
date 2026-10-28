@@ -7,12 +7,14 @@ import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
+import { ChecklistSheet } from './src/edit/ChecklistSheet';
 import { PadSheet } from './src/edit/PadSheet';
 import { SetSheet } from './src/edit/SetSheet';
 import { tap } from './src/haptics';
 import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
 import { TopBar } from './src/play/TopBar';
+import { useAudioOutput } from './src/play/useAudioOutput';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -29,7 +31,9 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [setsOpen, setSetsOpen] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
   const [activeCount, setActiveCount] = useState(0);
+  const { output, changed: outputChanged } = useAudioOutput();
 
   useEffect(() => engine.subscribe(() => setActiveCount(engine.activeCount())), []);
 
@@ -64,9 +68,12 @@ export default function App() {
         activeCount={activeCount}
         startup={startup}
         haptics={haptics}
+        output={output}
+        outputChanged={outputChanged}
         onToggleHaptics={() => setHaptics(!haptics)}
         onEdit={() => setEditing(true)}
         onOpenSets={() => setSetsOpen(true)}
+        onOpenChecklist={() => setChecklistOpen(true)}
         onDone={() => setEditing(false)}
         onStopAll={() => {
           engine.stopAll();
@@ -96,6 +103,7 @@ export default function App() {
         onExport={pads.exportActive}
         onImport={pads.importFile}
       />
+      <ChecklistSheet visible={checklistOpen} onClose={() => setChecklistOpen(false)} />
     </View>
   );
 }

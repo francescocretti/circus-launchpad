@@ -3,7 +3,7 @@
 // `snapshot()` a ogni frame e si iscrive a `subscribe()` per i cambi di fase (partenza, fine, stop).
 import { AudioBuffer, GainNode } from 'react-native-audio-api';
 import { dbToLinear } from './gain';
-import { audioContext, play, reversed, stop, STOP_RAMP, Voice } from './voice';
+import { audioContext, onContextReset, play, reversed, stop, STOP_RAMP, Voice } from './voice';
 
 export type PadPhase = 'idle' | 'playing' | 'fading';
 
@@ -40,6 +40,23 @@ const GAIN_SMOOTHING = 0.02; // costante di tempo per i cambi di volume a voce a
 export class PadEngine {
   private slots = new Map<number, Slot>();
   private listeners = new Set<(slot: number) => void>();
+
+  constructor() {
+    onContextReset(() => this.rebuild());
+  }
+
+  /** Dopo un nuovo contesto: le voci in corso sono perse, i gain di pad si ricreano con il volume attuale. */
+  private rebuild() {
+    const c = audioContext();
+    for (const [n, s] of this.slots) {
+      if (s.voice) s.voice.ended = true;
+      s.voice = null;
+      s.padGain = c.createGain();
+      s.padGain.gain.value = dbToLinear(s.settings.gainDb);
+      s.padGain.connect(c.destination);
+      this.emit(n);
+    }
+  }
 
   private slot(n: number): Slot {
     let s = this.slots.get(n);

@@ -1,5 +1,5 @@
 // Finestra del pad in modalità EDIT (spec §7.2, D-29): si apre toccando un pad e contiene tutte le sue
-// impostazioni. Ogni modifica si salva subito; CONFERMA chiude soltanto.
+// impostazioni. Ogni modifica si salva subito; CONFIRM chiude soltanto.
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -27,7 +27,7 @@ interface Props {
 }
 
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const fmtNum = (x: number, digits = 1) => x.toFixed(digits).replace('.', ',').replace('-', '−');
+const fmtNum = (x: number, digits = 1) => x.toFixed(digits).replace('-', '−');
 const fmtDb = (x: number) => (x > 0 ? '+' : x === 0 ? '±' : '') + fmtNum(x) + ' dB';
 
 function Segment<T extends string | number | boolean>(props: {
@@ -108,7 +108,7 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
   if (!pad) return null;
 
   const close = () => {
-    // ASCOLTA non deve continuare dopo la chiusura.
+    // PREVIEW non deve continuare dopo la chiusura.
     if (phase === 'playing') engine.stop(slot, { fast: true });
     setConfirmClear(false);
     onClose();
@@ -138,7 +138,7 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
             NORM. <Text style={styles.dataStrong}>{pad.normalize ? fmtDb(norm.gainDb) : 'off'}</Text>
           </Text>
           {pad.normalize && norm.limited && (
-            <Text style={[styles.data, { color: colors.edit }]}>limitato dal picco ({fmtDb(norm.gainDb - norm.wantedDb)})</Text>
+            <Text style={[styles.data, { color: colors.edit }]}>peak-limited ({fmtDb(norm.gainDb - norm.wantedDb)})</Text>
           )}
           <View style={{ flex: 1 }} />
           <Pressable
@@ -147,14 +147,14 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
             accessibilityRole="switch"
             accessibilityState={{ checked: pad.normalize }}
           >
-            <Text style={styles.segText}>NORMALIZZA</Text>
+            <Text style={styles.segText}>NORMALIZE</Text>
             <View style={[styles.switch, pad.normalize && styles.switchOn]}>
               <View style={styles.switchKnob} />
             </View>
           </Pressable>
         </View>
         <View style={styles.volumeRow}>
-          <Text style={[styles.groupTitle, { width: 86 }]}>CORREZIONE</Text>
+          <Text style={[styles.groupTitle, { width: 86 }]}>TRIM</Text>
           <View style={{ flex: 1 }}>
             <Slider
               value={pad.trimDb}
@@ -162,21 +162,21 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
               max={TRIM_MAX_DB}
               step={0.5}
               onChange={(trimDb) => set({ trimDb })}
-              accessibilityLabel="Correzione del volume"
+              accessibilityLabel="Volume trim"
             />
           </View>
           <Text style={[styles.dataStrong, { width: 72, textAlign: 'right' }]}>{fmtDb(pad.trimDb)}</Text>
         </View>
         <Text style={styles.note}>
-          Obiettivo −18 LUFS · tetto −1 dBTP · totale applicato <Text style={styles.dataStrong}>{fmtDb(total)}</Text>
+          Target −18 LUFS · ceiling −1 dBTP · total applied <Text style={styles.dataStrong}>{fmtDb(total)}</Text>
         </Text>
       </View>
     );
   }
 
   const warnings: string[] = [];
-  if (s && s.durationSec > LONG_FILE_SEC) warnings.push('File lungo (oltre 5 min): occupa molta memoria.');
-  if (setMemoryMB > SET_MEMORY_WARN_MB) warnings.push(`Il set usa ${Math.round(setMemoryMB)} MB di memoria: oltre ${SET_MEMORY_WARN_MB} MB.`);
+  if (s && s.durationSec > LONG_FILE_SEC) warnings.push('Long file (over 5 min): uses a lot of memory.');
+  if (setMemoryMB > SET_MEMORY_WARN_MB) warnings.push(`This set uses ${Math.round(setMemoryMB)} MB of memory: over ${SET_MEMORY_WARN_MB} MB.`);
 
   return (
     <Modal transparent animationType="fade" onRequestClose={close} supportedOrientations={['landscape']}>
@@ -195,23 +195,23 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
                   maxLength={MAX_LABEL}
                   autoCapitalize="characters"
                   autoCorrect={false}
-                  accessibilityLabel="Etichetta del pad"
+                  accessibilityLabel="Pad label"
                   style={styles.labelInput}
                 />
               ) : (
                 <View style={{ flex: 1 }} />
               )}
-              <Button label={s ? 'SOSTITUISCI' : 'CARICA'} variant="primary" onPress={pick} disabled={busy} />
+              <Button label={s ? 'REPLACE' : 'LOAD'} variant="primary" onPress={pick} disabled={busy} />
               {s && (
                 <Button
-                  label={phase === 'playing' ? '■ FERMA' : '▶ ASCOLTA'}
+                  label={phase === 'playing' ? '■ STOP' : '▶ PREVIEW'}
                   disabled={!ready}
                   onPress={() => (phase === 'playing' ? engine.stop(slot) : engine.start(slot))}
                 />
               )}
               {s && (
                 <Button
-                  label={confirmClear ? 'SICURO?' : 'SVUOTA'}
+                  label={confirmClear ? 'SURE?' : 'CLEAR'}
                   variant={confirmClear ? 'danger' : undefined}
                   onPress={() => {
                     if (!confirmClear) return setConfirmClear(true);
@@ -220,7 +220,7 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
                   }}
                 />
               )}
-              <Button label="CONFERMA" variant="confirm" onPress={close} />
+              <Button label="CONFIRM" variant="confirm" onPress={close} />
             </View>
 
             {status ? (
@@ -233,7 +233,7 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
                 {s.fileName} · {fmtTime(s.durationSec)} · {fmtNum(s.sampleRate / 1000)} kHz · {s.channels === 1 ? 'mono' : 'stereo'}
               </Text>
             ) : (
-              <Text style={styles.data}>Pad vuoto: CARICA per scegliere un file (WAV, MP3, M4A, FLAC, OGG).</Text>
+              <Text style={styles.data}>Empty pad: LOAD to pick a file (WAV, MP3, M4A, FLAC, OGG).</Text>
             )}
             {warnings.map((w) => (
               <Text key={w} style={[styles.data, { color: colors.edit }]}>⚠ {w}</Text>
@@ -242,9 +242,9 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
             {s && (
               <>
                 <View style={styles.row}>
-                  <Segment<PadMode> title="MODALITÀ" value={pad.mode} options={[['oneshot', 'ONE SHOT'], ['loop', 'LOOP']]} onPick={(mode) => set({ mode })} />
-                  <Segment<boolean> title="DIREZIONE" value={pad.reverse} options={[[false, 'AVANTI'], [true, '◂ REV']]} onPick={(reverse) => set({ reverse })} />
-                  <Segment<Retrigger> title="AL RITOCCO" value={pad.retrigger} options={[['stop', 'STOP'], ['restart', 'RIPARTE'], ['ignore', 'IGNORA']]} onPick={(retrigger) => set({ retrigger })} />
+                  <Segment<PadMode> title="MODE" value={pad.mode} options={[['oneshot', 'ONE SHOT'], ['loop', 'LOOP']]} onPick={(mode) => set({ mode })} />
+                  <Segment<boolean> title="DIRECTION" value={pad.reverse} options={[[false, 'FWD ▸'], [true, '◂ REV']]} onPick={(reverse) => set({ reverse })} />
+                  <Segment<Retrigger> title="ON RETRIGGER" value={pad.retrigger} options={[['stop', 'STOP'], ['restart', 'RESTART'], ['ignore', 'IGNORE']]} onPick={(retrigger) => set({ retrigger })} />
                 </View>
                 <View style={styles.row}>
                   <Segment<number> title="FADE IN" value={pad.fadeInSec} options={FADE_OPTIONS} onPick={(fadeInSec) => set({ fadeInSec })} />

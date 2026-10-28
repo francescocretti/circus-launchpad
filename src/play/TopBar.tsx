@@ -1,6 +1,7 @@
 // Barra superiore (spec §4.2, §6, §7.2): marchio, set, voci attive, EDIT/FINE e STOP generale.
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { AudioOutput, OutputKind } from '../../modules/audio-output/src';
 import { colors, fonts, layout } from '../theme';
 
 const STOP_HOLD_MS = 300;
@@ -12,14 +13,18 @@ interface Props {
   /** Avanzamento della decodifica all'avvio (spec §8), null quando tutti i pad sono pronti. */
   startup: { done: number; total: number } | null;
   haptics: boolean;
+  output: AudioOutput;
+  /** L'uscita è appena cambiata: si evidenzia per qualche secondo. */
+  outputChanged: boolean;
   onToggleHaptics: () => void;
   onEdit: () => void;
   onOpenSets: () => void;
+  onOpenChecklist: () => void;
   onDone: () => void;
   onStopAll: () => void;
 }
 
-export function TopBar({ editing, setName, activeCount, startup, haptics, onToggleHaptics, onEdit, onOpenSets, onDone, onStopAll }: Props) {
+export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onDone, onStopAll }: Props) {
   return (
     <View style={styles.bar}>
       {editing ? (
@@ -36,7 +41,7 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, onTogg
         </View>
       )}
       {editing ? (
-        <Pressable onPress={onOpenSets} style={[styles.set, styles.setButton]} accessibilityLabel="Gestisci i set">
+        <Pressable onPress={onOpenSets} style={[styles.set, styles.setButton]} accessibilityLabel="Manage sets">
           <Text style={styles.muted}>SET</Text>
           <Text style={styles.setName}>{setName}</Text>
           <Text style={[styles.setName, { color: colors.edit }]}>▾</Text>
@@ -50,27 +55,64 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, onTogg
       <View style={{ flex: 1 }} />
       {startup && (
         <Text style={[styles.muted, { color: colors.edit }]}>
-          CARICAMENTO… {startup.done}/{startup.total}
+          LOADING… {startup.done}/{startup.total}
         </Text>
       )}
+      <OutputIndicator output={output} changed={outputChanged} />
       {editing ? (
         <>
+          <Pressable onPress={onOpenChecklist} style={styles.outlineBtn}>
+            <Text style={styles.btnText}>CHECKLIST</Text>
+          </Pressable>
           <Pressable onPress={onToggleHaptics} style={styles.outlineBtn} accessibilityRole="switch" accessibilityState={{ checked: haptics }}>
-            <Text style={styles.btnText}>VIBRAZIONE {haptics ? 'ON' : 'OFF'}</Text>
+            <Text style={styles.btnText}>HAPTICS {haptics ? 'ON' : 'OFF'}</Text>
           </Pressable>
           <Pressable onPress={onDone} style={[styles.outlineBtn, styles.doneBtn]}>
-            <Text style={[styles.btnText, { color: colors.ink }]}>FINE ✓</Text>
+            <Text style={[styles.btnText, { color: colors.ink }]}>DONE ✓</Text>
           </Pressable>
         </>
       ) : (
         <>
-          <Text style={styles.muted}>{activeCount === 1 ? '1 VOCE' : `${activeCount} VOCI`}</Text>
+          <Text style={styles.muted}>{activeCount === 1 ? '1 VOICE' : `${activeCount} VOICES`}</Text>
           <Pressable onPress={onEdit} style={styles.outlineBtn}>
             <Text style={styles.btnText}>EDIT</Text>
           </Pressable>
         </>
       )}
       <StopButton enabled={activeCount > 0} onStop={onStopAll} />
+    </View>
+  );
+}
+
+const OUTPUT_LABEL: Record<OutputKind, string> = {
+  usb: 'USB-C',
+  wired: 'WIRED',
+  bluetooth: 'BLUETOOTH · HIGH LATENCY',
+  speaker: 'SPEAKER',
+  other: 'OTHER',
+  unknown: '—',
+};
+const OUTPUT_COLOR: Record<OutputKind, string> = {
+  usb: colors.ok,
+  wired: colors.ok,
+  bluetooth: colors.danger,
+  speaker: colors.edit,
+  other: colors.textMuted,
+  unknown: colors.textMuted,
+};
+
+/** Uscita audio (spec §11): verde cablata, ambra altoparlante, rosso Bluetooth; un cambio si evidenzia. */
+function OutputIndicator({ output, changed }: { output: AudioOutput; changed: boolean }) {
+  const color = OUTPUT_COLOR[output.kind];
+  return (
+    <View
+      style={[styles.output, changed && { backgroundColor: color }]}
+      accessibilityLabel={`Audio output: ${OUTPUT_LABEL[output.kind]}${output.name ? `, ${output.name}` : ''}`}
+    >
+      <View style={[styles.outputDot, { backgroundColor: changed ? colors.ink : color }]} />
+      <Text style={[styles.btnText, { color: changed ? colors.ink : output.kind === 'bluetooth' ? colors.danger : colors.text }]}>
+        {changed ? `OUTPUT → ${OUTPUT_LABEL[output.kind]}` : OUTPUT_LABEL[output.kind]}
+      </Text>
     </View>
   );
 }
@@ -107,7 +149,7 @@ function StopButton({ enabled, onStop }: { enabled: boolean; onStop: () => void 
         }, STOP_HOLD_MS);
       }}
       onPressOut={release}
-      accessibilityLabel="Ferma tutto (tieni premuto)"
+      accessibilityLabel="Stop all (hold)"
       style={[styles.stop, enabled ? styles.stopOn : null]}
     >
       <View style={[styles.stopFill, { width: `${progress * 100}%` }]} />
@@ -149,6 +191,8 @@ const styles = StyleSheet.create({
   outlineBtn: { borderWidth: 1, borderColor: '#5a534c', borderRadius: 4, paddingHorizontal: 12, paddingVertical: 4 },
   doneBtn: { backgroundColor: colors.edit, borderColor: colors.edit },
   btnText: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 1.3, color: colors.text },
+  output: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, height: 24, borderRadius: 4 },
+  outputDot: { width: 7, height: 7, borderRadius: 4 },
   stop: {
     height: 24,
     paddingHorizontal: 12,

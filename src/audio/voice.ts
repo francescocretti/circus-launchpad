@@ -25,11 +25,54 @@ export interface PlayOptions {
   onEnded?: (voice: Voice) => void;
 }
 
+const WATCHDOG_MS = 1000;
+const STALL_TICKS = 2; // secondi di clock fermo prima di ricreare il contesto
+
 let ctx: AudioContext | null = null;
+let watchdog: ReturnType<typeof setInterval> | null = null;
+const resetListeners = new Set<() => void>();
 
 export function audioContext(): AudioContext {
-  if (!ctx) ctx = new AudioContext();
+  if (!ctx) {
+    ctx = new AudioContext();
+    // Lo stream parte subito e resta sempre attivo: la libreria si riprende da sola da una disconnessione
+    // (cambio di uscita, stream esclusivo preso da un'altra app) solo se lo stream sta girando. Uno stream
+    // aperto ma mai avviato resta invece muto per sempre.
+    void ctx.resume();
+    startWatchdog();
+  }
   return ctx;
+}
+
+/** Avvisa quando il contesto è stato ricreato: nodi e voci del vecchio contesto non valgono più. */
+export function onContextReset(listener: () => void): () => void {
+  resetListeners.add(listener);
+  return () => resetListeners.delete(listener);
+}
+
+/**
+ * Rete di sicurezza: se il clock audio resta fermo (stream disconnesso e non recuperato), chiude il contesto
+ * e ne crea uno nuovo. I buffer non dipendono dal contesto e restano validi.
+ */
+function startWatchdog() {
+  if (watchdog) return;
+  let last = -1;
+  let stalled = 0;
+  watchdog = setInterval(() => {
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    stalled = now === last ? stalled + 1 : 0;
+    last = now;
+    if (stalled === 1) void ctx.resume();
+    if (stalled < STALL_TICKS) return;
+    const old = ctx;
+    ctx = null;
+    stalled = 0;
+    last = -1;
+    void old.close();
+    audioContext();
+    resetListeners.forEach((l) => l());
+  }, WATCHDOG_MS);
 }
 
 export function play(buffer: AudioBuffer, opts: PlayOptions = {}): Voice {
