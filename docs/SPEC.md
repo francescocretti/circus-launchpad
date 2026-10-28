@@ -473,7 +473,7 @@ M0 deve dimostrare che due pad toccati insieme partono entrambi.
   **Il keystore di release va creato una volta e conservato** (perderlo impedisce gli aggiornamenti senza
   disinstallare): è un passo da fare con l'utente prima del primo APK distribuito. **Non riusare** il keystore di Tessere.
 - Package Android: `io.github.francescocretti.circuslaunchpad`.
-- Distribuzione (D-33): **release su GitHub nel repository privato** come archivio (tag `vX.Y.Z`, titolo "Circus
+- Distribuzione (D-33): **release su GitHub nel repository pubblico** (reso pubblico il 2026-10-28) (tag `vX.Y.Z`, titolo "Circus
   Launchpad X.Y.Z", note in italiano, APK allegato). La band scarica l'APK **dalla pagina Releases**: il README linka direttamente
   `releases/latest/download/circus-launchpad-release.apk`. Istruzioni di installazione (origini sconosciute, Play
   Protect) nel README.
@@ -576,7 +576,7 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 - Interfaccia e README in inglese (D-34); README come guida d'uso con screenshot.
 - Stream audio sempre attivo e watchdog del clock (D-35), verificati dall'utente anche collegando l'adattatore
   prima del primo pad.
-- Release GitHub `v1.0.0` nel repo privato con l'APK allegato (D-33).
+- Release GitHub `v1.0.0` con l'APK allegato, repo reso pubblico (D-33).
 
 ## 16. Punti aperti
 
