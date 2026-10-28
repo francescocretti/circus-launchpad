@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 (sync su Drive)** in corso: passi 1–4 fatti, manca la prova su due telefoni e la release (§15.7).
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 completato** (§15.7): **v1.1.0** con la sync su Google Drive.
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -627,7 +627,7 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
   prima del primo pad.
 - Release GitHub `v1.0.0` con l'APK allegato, repo reso pubblico (D-33).
 
-### 15.7 Piano M6 — Sync su Drive (in corso)
+### 15.7 Piano M6 — Sync su Drive (completato il 2026-10-28)
 
 1. **Configurazione e login.** L'utente crea progetto, consenso OAuth e client Android (§10.2). Si sceglie la
    libreria di login verificando la documentazione di Expo SDK 58 (candidate: Google Sign-In nativo con config
@@ -670,6 +670,12 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 5. **Prova su due telefoni** con lo stesso account: backup e ripristino dopo una reinstallazione, modifica da una
    parte sola, conflitto, cancellazione in tutte e due le direzioni, prima sync con set già presenti, set attivo
    cambiato altrove, solo Wi-Fi. Poi README (sezione Sync, in inglese) e release `v1.1.0`.
+   - **Prova su due telefoni rimandata** per scelta dell'utente (nessun secondo telefono disponibile, rischio
+     accettato: se emerge un problema si corregge con una patch). Verificati solo su un telefono: tutti i casi
+     tranne conflitto, modifica che arriva da un altro telefono, set attivo cambiato altrove e prima sync con
+     suffisso del modello, coperti però dai test di `plan.test.ts`.
+   - README con la sezione "Sync with Google Drive" (`docs/screenshots/sync.png`), le istruzioni Google per chi
+     compila dal sorgente ed `edit.png` rifatto con il pulsante `SYNC`. Release **`v1.1.0`** (versionCode 2).
 
 ## 16. Punti aperti
 
@@ -683,6 +689,7 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 | P-6 | ~~Distribuzione~~: release su GitHub con l'APK allegato, da cui la band lo scarica (D-33). | — |
 | P-7 | ~~Icona~~: marchio a 4 barrette (D-32), generata da `scripts/make-icons.sh`. | — |
 | P-8 | Marchio "Launchpad" (Novation): nessun problema per un APK privato, da rivalutare se si pubblica su uno store. | — |
+| P-9 | Sync su Drive non ancora provata su due telefoni (§15.7): conflitto, modifica da un altro telefono, set attivo cambiato altrove, prima sync con suffisso del modello. | Da fare appena c'è un secondo telefono; eventuali problemi → patch 1.1.x. |
 
 ## 17. Fuori scope (v1)
 
