@@ -109,8 +109,10 @@ export function SetSheet(props: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close} supportedOrientations={['landscape']}>
-      <Pressable style={styles.backdrop} onPress={busy ? undefined : close}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      <View style={styles.backdrop}>
+        {/* Sfondo dietro la finestra, non attorno: un Pressable attorno a uno ScrollView ne ruba i trascinamenti. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={busy ? undefined : close} />
+        <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>SET</Text>
             <Text style={styles.hint}>Tap a set to make it active. Actions apply to the active set.</Text>
@@ -173,8 +175,8 @@ export function SetSheet(props: Props) {
             {busy && <Text style={[styles.hint, { color: colors.edit }]}>{busy}</Text>}
             {error && <Text style={[styles.hint, { color: colors.danger }]} numberOfLines={2}>ERROR: {error}</Text>}
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

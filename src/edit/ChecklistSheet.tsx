@@ -19,8 +19,10 @@ const VERSION = `Circus Launchpad v${Application.nativeApplicationVersion} (${Ap
 export function ChecklistSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['landscape']}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      <View style={styles.backdrop}>
+        {/* Sfondo dietro la finestra, non attorno: un Pressable attorno a uno ScrollView ne ruba i trascinamenti. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>STAGE CHECKLIST</Text>
             <View style={{ flex: 1 }} />
@@ -40,8 +42,8 @@ export function ChecklistSheet({ visible, onClose }: { visible: boolean; onClose
             ))}
             <Text style={styles.version}>{VERSION}</Text>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

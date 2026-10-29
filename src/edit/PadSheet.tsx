@@ -180,8 +180,10 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
 
   return (
     <Modal transparent animationType="fade" onRequestClose={close} supportedOrientations={['landscape']}>
-      <Pressable style={styles.backdrop} onPress={close}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      <View style={styles.backdrop}>
+        {/* Sfondo dietro la finestra, non attorno: un Pressable attorno a uno ScrollView ne ruba i trascinamenti. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+        <View style={styles.sheet}>
           <ScrollView contentContainerStyle={{ gap: 12 }} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <View style={[styles.swatch, { backgroundColor: PAD_COLORS[slot - 1] }]} />
@@ -254,8 +256,8 @@ export function PadSheet({ pad, status, setMemoryMB, onClose, onLoad, onUpdate, 
               </>
             )}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

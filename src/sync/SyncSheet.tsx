@@ -23,8 +23,10 @@ export function SyncSheet({ visible, sync, onClose }: { visible: boolean; sync: 
   const { account, busy, error, progress, waiting } = sync;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={['landscape']}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      <View style={styles.backdrop}>
+        {/* Sfondo dietro la finestra, non attorno: un Pressable attorno a uno ScrollView ne ruba i trascinamenti. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>SYNC</Text>
             <SyncIcon busy={busy} error={!!error} size={20} />
@@ -82,8 +84,8 @@ export function SyncSheet({ visible, sync, onClose }: { visible: boolean; sync: 
             </Pressable>
           )}
           {error && <Text style={[styles.detail, { color: colors.danger }]}>{error}</Text>}
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
