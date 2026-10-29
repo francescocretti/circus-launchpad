@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 completato** (§15.7): **v1.1.0** con la sync su Google Drive.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 completato** (§15.7): **v1.1.0** con la sync su Google Drive. **v1.1.1**: un buffer decodificato per sample, condiviso tra i pad (§8).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
