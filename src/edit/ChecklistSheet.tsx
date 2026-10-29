@@ -1,4 +1,5 @@
 // Checklist da palco (spec §12): promemoria da scorrere prima del concerto, aperto da EDIT.
+import * as Application from 'expo-application';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
@@ -11,6 +12,9 @@ const ITEMS: [string, string][] = [
   ['Right set', 'Check the set name in the bar.'],
   ['Test every pad', 'At soundcheck, each pad once, with the engineer at the mixer.'],
 ];
+
+// Versione dell'APK installato (versionName · versionCode), per sapere che build ha chi chiede aiuto.
+const VERSION = `Circus Launchpad v${Application.nativeApplicationVersion} (${Application.nativeBuildVersion})`;
 
 export function ChecklistSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
@@ -34,6 +38,7 @@ export function ChecklistSheet({ visible, onClose }: { visible: boolean; onClose
                 </View>
               </View>
             ))}
+            <Text style={styles.version}>{VERSION}</Text>
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -60,6 +65,7 @@ const styles = StyleSheet.create({
   num: { width: 22, fontFamily: fonts.monoBold, fontSize: 14, color: colors.edit },
   itemTitle: { fontFamily: fonts.label, fontSize: 17, letterSpacing: 0.8, color: colors.text },
   detail: { fontFamily: fonts.mono, fontSize: 11, color: colors.textMuted },
+  version: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMuted, textAlign: 'right', marginTop: 4 },
   btn: { borderWidth: 1, borderColor: colors.edit, borderRadius: 4, paddingHorizontal: 14, height: 36, justifyContent: 'center' },
   btnText: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 1, color: colors.edit },
 });
