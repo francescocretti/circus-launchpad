@@ -3,6 +3,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { decodedMB } from '../model/pads';
 import { MAX_SET_NAME } from '../model/usePadSet';
 import type { PadSet } from '../model/storage';
 import { colors, fonts } from '../theme';
@@ -25,10 +26,7 @@ interface Props {
 
 const stats = (set: PadSet) => {
   const loaded = set.pads.filter((p) => p.sample);
-  const mb = loaded.reduce(
-    (n, p) => n + (p.sample!.durationSec * p.sample!.sampleRate * p.sample!.channels * 4 * (p.reverse ? 2 : 1)) / 1e6,
-    0,
-  );
+  const mb = decodedMB(set.pads);
   return `${loaded.length} ${loaded.length === 1 ? 'pad' : 'pads'} · ${Math.round(mb)} MB`;
 };
 

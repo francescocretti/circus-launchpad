@@ -48,3 +48,18 @@ export function emptyPad(slot: number): PadConfig {
 }
 
 export const padTitle = (p: PadConfig) => (p.label || p.sample?.fileName || '').toUpperCase();
+
+/**
+ * Memoria occupata dai sample decodificati (float32, spec §8), in MB: una volta per sample anche se è su più pad
+ * (i pad lo condividono), più la versione invertita se almeno uno di quei pad è in reverse.
+ */
+export function decodedMB(pads: PadConfig[]): number {
+  const copies = new Map<string, { mb: number; reverse: boolean }>();
+  for (const p of pads) {
+    const s = p.sample;
+    if (!s) continue;
+    const c = copies.get(s.id) ?? { mb: (s.durationSec * s.sampleRate * s.channels * 4) / 1e6, reverse: false };
+    copies.set(s.id, { ...c, reverse: c.reverse || p.reverse });
+  }
+  return [...copies.values()].reduce((mb, c) => mb + c.mb * (c.reverse ? 2 : 1), 0);
+}

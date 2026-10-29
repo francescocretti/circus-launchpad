@@ -8,6 +8,7 @@
 //   mostra LOADING… e si carica da solo appena il file c'è, senza fermare gli altri pad.
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AudioBuffer } from 'react-native-audio-api';
 import { PadEngine } from '../audio/engine';
 import { appliedGainDb, normalization } from '../audio/gain';
 import { analyzeSample, decodeSample } from '../audio/sample';
@@ -53,6 +54,7 @@ function syncEngine(p: PadConfig) {
 /** Messaggio per pad durante caricamento o in caso di errore; assente quando il pad è pronto. */
 export type PadStatus = { kind: 'busy' | 'error'; message: string };
 
+const sampleIds = (set: PadSet) => new Set(set.pads.flatMap((p) => (p.sample ? [p.sample.id] : [])));
 const loadedSlots = (set: PadSet) => set.pads.filter((p) => p.sample).map((p) => p.slot);
 const busyStatuses = (slots: number[]) =>
   Object.fromEntries(slots.map((slot) => [slot, { kind: 'busy', message: 'LOADING…' } as PadStatus]));
@@ -85,6 +87,26 @@ export function usePadSet({ samplesMayArrive = false } = {}) {
   const generation = useRef(0); // invalida le decodifiche di un set non più attivo
   const samplesPending = useRef(samplesMayArrive); // una sync può ancora portare i sample mancanti
   const waiting = useRef(new Set<number>()); // pad in attesa di un sample dalla sync
+  // Un buffer decodificato per sample: i pad con lo stesso sample lo condividono (ogni voce ne riceve comunque
+  // una copia sua dalla libreria, quindi restano indipendenti). L'id è l'hash del contenuto: un buffer in mappa
+  // non è mai vecchio, al più inutilizzato, e `prune` lo toglie.
+  const buffers = useRef(new Map<string, AudioBuffer>());
+
+  const bufferFor = async (id: string) => {
+    let buffer = buffers.current.get(id);
+    if (!buffer) {
+      buffer = (await decodeSample(sampleUri(id))).buffer;
+      // Durante la decodifica il set può essere cambiato: si tiene solo se serve ancora.
+      if (sampleIds(setRef.current).has(id)) buffers.current.set(id, buffer);
+    }
+    return buffer;
+  };
+
+  /** Libera i buffer dei sample che il set non usa più. */
+  const prune = (target: PadSet) => {
+    const used = sampleIds(target);
+    for (const id of buffers.current.keys()) if (!used.has(id)) buffers.current.delete(id);
+  };
 
   const setStatus = (slot: number, status: PadStatus | null) =>
     setStatuses((s) => {
@@ -117,9 +139,9 @@ export function usePadSet({ samplesMayArrive = false } = {}) {
       let status: PadStatus | null = null;
       try {
         if (sampleExists(id)) {
-          const decoded = await decodeSample(sampleUri(id));
+          const buffer = await bufferFor(id);
           if (gen !== generation.current) return;
-          engine.setBuffer(slot, decoded.buffer);
+          engine.setBuffer(slot, buffer);
           syncEngine(setRef.current.pads[slot - 1]);
         } else if (samplesPending.current) {
           // Il sample sta arrivando con la sync: il pad resta in LOADING… e si carica con resolveWaiting.
@@ -166,6 +188,7 @@ export function usePadSet({ samplesMayArrive = false } = {}) {
       waiting.current.clear();
       engine.stopAll();
       for (let slot = 1; slot <= PAD_COUNT; slot++) engine.setBuffer(slot, null);
+      prune(next); // i sample in comune con il set precedente non si ridecodificano
       next.pads.forEach(syncEngine);
       setRef.current = next;
       setSet(next);
@@ -200,24 +223,34 @@ export function usePadSet({ samplesMayArrive = false } = {}) {
       try {
         setStatus(slot, { kind: 'busy', message: 'COPYING…' });
         const id = await importSample(pickedUri, fileName);
-        setStatus(slot, { kind: 'busy', message: 'DECODING…' });
-        const decoded = await decodeSample(sampleUri(id));
-        setStatus(slot, { kind: 'busy', message: 'ANALYZING…' });
-        // Lascia disegnare il messaggio prima del calcolo, che blocca il thread JS per qualche secondo.
-        await new Promise((r) => setTimeout(r, 30));
-        const loud = analyzeSample(decoded.buffer);
-        engine.setBuffer(slot, decoded.buffer);
-        update(slot, {
-          sample: {
-            id,
-            fileName,
-            durationSec: decoded.durationSec,
-            sampleRate: decoded.sampleRate,
-            channels: decoded.channels,
-            loudnessLufs: loud.lufs,
-            truePeakDbtp: loud.truePeakDbtp,
-          },
-        });
+        // Stesso file già su un altro pad del set: buffer e misure si riusano.
+        const known = setRef.current.pads.find((p) => p.sample?.id === id)?.sample;
+        const buffer = buffers.current.get(id);
+        if (known && buffer) {
+          engine.setBuffer(slot, buffer);
+          update(slot, { sample: { ...known, fileName } });
+        } else {
+          setStatus(slot, { kind: 'busy', message: 'DECODING…' });
+          const decoded = await decodeSample(sampleUri(id));
+          buffers.current.set(id, decoded.buffer);
+          setStatus(slot, { kind: 'busy', message: 'ANALYZING…' });
+          // Lascia disegnare il messaggio prima del calcolo, che blocca il thread JS per qualche secondo.
+          await new Promise((r) => setTimeout(r, 30));
+          const loud = analyzeSample(decoded.buffer);
+          engine.setBuffer(slot, decoded.buffer);
+          update(slot, {
+            sample: {
+              id,
+              fileName,
+              durationSec: decoded.durationSec,
+              sampleRate: decoded.sampleRate,
+              channels: decoded.channels,
+              loudnessLufs: loud.lufs,
+              truePeakDbtp: loud.truePeakDbtp,
+            },
+          });
+        }
+        prune(setRef.current); // il sample sostituito, se nessun altro pad lo usa
         setStatus(slot, null);
       } catch (e) {
         setStatus(slot, { kind: 'error', message: `ERROR: ${e instanceof Error ? e.message : String(e)}` });
@@ -234,6 +267,7 @@ export function usePadSet({ samplesMayArrive = false } = {}) {
       syncEngine(fresh);
       setStatus(slot, null);
       commit({ ...cur, pads: cur.pads.map((p) => (p.slot === slot ? fresh : p)) });
+      prune(setRef.current);
     },
     [commit],
   );
@@ -354,9 +388,9 @@ export function usePadSet({ samplesMayArrive = false } = {}) {
       }
       waiting.current.delete(slot);
       try {
-        const decoded = await decodeSample(sampleUri(id));
+        const buffer = await bufferFor(id);
         if (gen !== generation.current) return;
-        engine.setBuffer(slot, decoded.buffer);
+        engine.setBuffer(slot, buffer);
         syncEngine(setRef.current.pads[slot - 1]);
         setStatus(slot, null);
       } catch {

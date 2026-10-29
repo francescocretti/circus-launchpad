@@ -34,6 +34,17 @@ interface Slot {
   voice: Voice | null;
 }
 
+// Versione invertita di ogni buffer, condivisa dai pad con lo stesso sample in reverse; si libera con il buffer.
+const backwards = new WeakMap<AudioBuffer, AudioBuffer>();
+function backwardOf(buffer: AudioBuffer): AudioBuffer {
+  let b = backwards.get(buffer);
+  if (!b) {
+    b = reversed(buffer);
+    backwards.set(buffer, b);
+  }
+  return b;
+}
+
 const DEFAULT_SETTINGS: PadSettings = { loop: false, reverse: false, fadeInSec: 0, fadeOutSec: 1, gainDb: 0 };
 const GAIN_SMOOTHING = 0.02; // costante di tempo per i cambi di volume a voce attiva
 
@@ -85,7 +96,7 @@ export class PadEngine {
     if (s.voice) stop(s.voice);
     s.forward = buffer;
     s.backward = null;
-    if (buffer && s.settings.reverse) s.backward = reversed(buffer);
+    if (buffer && s.settings.reverse) s.backward = backwardOf(buffer);
   }
 
   /**
@@ -95,7 +106,7 @@ export class PadEngine {
   configure(n: number, patch: Partial<PadSettings>) {
     const s = this.slot(n);
     s.settings = { ...s.settings, ...patch };
-    if (s.settings.reverse && s.forward && !s.backward) s.backward = reversed(s.forward);
+    if (s.settings.reverse && s.forward && !s.backward) s.backward = backwardOf(s.forward);
     if (patch.gainDb !== undefined) {
       const c = audioContext();
       s.padGain.gain.setTargetAtTime(dbToLinear(patch.gainDb), c.currentTime, GAIN_SMOOTHING);

@@ -265,7 +265,9 @@ Con il pad in riproduzione, la logica è:
   1. copia; 2. decodifica completa in PCM float32 alla frequenza del dispositivo; 3. misura loudness e
   true peak (§9); 4. salvataggio dei metadati (durata, canali, frequenza, LUFS, picco).
 - **Memoria**: i sample vengono decodificati interamente in RAM (serve per reverse e bassa latenza). A
-  48 kHz stereo float32 sono ~23 MB al minuto. Limiti v1 (D-19, da confermare: §16):
+  48 kHz stereo float32 sono ~23 MB al minuto. Un sample usato da più pad si decodifica **una volta** e i pad
+  condividono il buffer (anche quello invertito): la libreria copia comunque il buffer in ogni voce che parte,
+  quindi i pad restano indipendenti. Limiti v1 (D-19, da confermare: §16):
   - avviso oltre **5 minuti** per file;
   - avviso se il totale del set supera **300 MB** decodificati.
 - I sample del set attivo vengono decodificati all'avvio dell'app e al cambio di set: l'app mostra
@@ -483,7 +485,8 @@ Sfondo a riposo = `mix(padRestBase, colore, 20%)`. In riproduzione = colore pien
 ### 14.2 Motore audio
 
 - **Un solo `AudioContext`** per tutta la vita dell'app, alla frequenza preferita del dispositivo.
-- Per ogni pad: `AudioBuffer` decodificato (già invertito se `reverse`), più un `GainNode` di pad (normalizzazione
+- Per ogni pad: `AudioBuffer` decodificato (già invertito se `reverse`; condiviso tra i pad con lo stesso sample,
+  §8), più un `GainNode` di pad (normalizzazione
   + correzione) collegato alla destinazione.
 - Per ogni lancio: un nuovo `AudioBufferSourceNode` (i source node sono usa-e-getta) → un `GainNode` di voce
   (inviluppo di fade) → GainNode di pad → destinazione. `loop = true` per i loop.

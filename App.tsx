@@ -11,6 +11,7 @@ import { ChecklistSheet } from './src/edit/ChecklistSheet';
 import { PadSheet } from './src/edit/PadSheet';
 import { SetSheet } from './src/edit/SetSheet';
 import { tap } from './src/haptics';
+import { decodedMB } from './src/model/pads';
 import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
 import { TopBar } from './src/play/TopBar';
@@ -117,15 +118,7 @@ export default function App() {
     return () => sub.remove();
   }, [editing, requestSync]);
 
-  // Memoria occupata dai sample decodificati (float32), raddoppiata per i pad in reverse (spec §8).
-  const setMemoryMB = useMemo(
-    () =>
-      (set?.pads ?? []).reduce((mb, p) => {
-        const s = p.sample;
-        return s ? mb + (s.durationSec * s.sampleRate * s.channels * 4 * (p.reverse ? 2 : 1)) / 1e6 : mb;
-      }, 0),
-    [set],
-  );
+  const setMemoryMB = useMemo(() => decodedMB(set?.pads ?? []), [set]);
 
   if (!fontsLoaded || !set) return <View style={styles.root} />;
 
