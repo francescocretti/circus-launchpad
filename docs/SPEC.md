@@ -678,6 +678,13 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
      accettato: se emerge un problema si corregge con una patch). Verificati solo su un telefono: tutti i casi
      tranne conflitto, modifica che arriva da un altro telefono, set attivo cambiato altrove e prima sync con
      suffisso del modello, coperti però dai test di `plan.test.ts`.
+   - **Prova su due telefoni fatta il 2026-10-29** dall'utente (Pixel 7a + Samsung Galaxy A16, v1.1.3, stesso
+     account), tutti e quattro i casi riusciti: prima sync con un set già presente (Samsung reinstallato, sample
+     caricato prima del login → set rinominato con il modello); modifica di un set non attivo che arriva
+     dall'altro telefono; set attivo cambiato altrove (in PLAY resta com'è, entrando in EDIT `SET UPDATED`);
+     conflitto (entrambe le versioni tenute). In `(CONFLICT)` è finita la versione del Pixel, che ha toccato
+     `DONE ✓` per primo: "secondo" è chi **legge** Drive per secondo, e il Samsung aveva già letto e caricato
+     mentre la sync del Pixel partiva. Comportamento corretto; ne è emerso P-11.
    - README con la sezione "Sync with Google Drive" (`docs/screenshots/sync.png`), le istruzioni Google per chi
      compila dal sorgente ed `edit.png` rifatto con il pulsante `SYNC`. Release **`v1.1.0`** (versionCode 2).
 
@@ -693,8 +700,9 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 | P-6 | ~~Distribuzione~~: release su GitHub con l'APK allegato, da cui la band lo scarica (D-33). | — |
 | P-7 | ~~Icona~~: marchio a 4 barrette (D-32), generata da `scripts/make-icons.sh`. | — |
 | P-8 | Marchio "Launchpad" (Novation): nessun problema per un APK privato, da rivalutare se si pubblica su uno store. | — |
-| P-9 | Sync su Drive non ancora provata su due telefoni (§15.7): conflitto, modifica da un altro telefono, set attivo cambiato altrove, prima sync con suffisso del modello. | Da fare appena c'è un secondo telefono; eventuali problemi → patch 1.1.x. |
+| P-9 | ~~Sync su Drive non ancora provata su due telefoni~~: provata il 2026-10-29 su Pixel 7a + Galaxy A16, tutti i casi riusciti (§15.7). | — |
 | P-10 | **Copia del buffer a ogni tocco.** `react-native-audio-api` 0.13.6 copia l'intero buffer quando gli si assegna una voce (`source.buffer = …`, `AudioBufferSourceNodeHostObject.cpp:178`, ramo senza `pitchCorrection`), sul thread JS e prima che il pad parta. Misurato sul Pixel 7a (2026-10-29, 6 tocchi per pad): 24 s stereo (9,5 MB) → 12–18 ms; 4:53 stereo (113 MB) → 82–93 ms; il primo tocco dopo l'avvio fino a 32 e 112 ms. Supera NF-1 (≤ 30 ms) già con sample di 20–30 s; un secondo pad toccato insieme aspetta la copia del primo; il micro-fade d'avvio di 5 ms risulta già passato (`now` è preso prima della copia), quindi possibili click; la RAM di un pad che suona raddoppia. Con one shot di pochi secondi l'effetto è di pochi ms. | Lasciato così per ora (scelta dell'utente). Patch futura consigliata: `patch-package` su quella riga (`copiedBuffer = buffer;` invece della copia), sicura perché l'app non modifica mai un buffer dopo averlo creato; da ricontrollare a ogni aggiornamento della libreria. Alternativa scartata: preparare la voce in anticipo (RAM doppia fissa e thread JS comunque bloccato dopo ogni tocco). |
+| P-11 | **Scritture quasi simultanee su Drive.** Una sync prima legge l'elenco dei set su Drive, poi carica; l'upload (`writeSet`, `src/sync/drive.ts`) non controlla che il file sia ancora quello letto. Se due telefoni hanno modificato lo stesso set e leggono Drive quasi nello stesso istante (uscita da EDIT a pochi secondi di distanza), tutti e due vedono "cambiato solo qui" e caricano: vince l'ultimo che scrive e la modifica dell'altro si perde **senza `(CONFLICT)`**. Unico modo in cui la sync può perdere una modifica; molto raro per l'uso previsto. | Lasciato così per ora. Correzione proposta: subito prima di caricare un set si rilegge il suo hash su Drive; se non è più quello della base, si tratta come conflitto. Riduce la finestra da qualche secondo a pochi ms (Drive non offre un blocco vero). |
 
 ## 17. Fuori scope (v1)
 
