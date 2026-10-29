@@ -146,7 +146,7 @@ When the output changes, for example when you plug in the cable, the indicator f
 ![The stage checklist](docs/screenshots/checklist.png)
 
 You'll also find it in the app, in EDIT → `CHECKLIST`. The bottom of that window shows the app version, for
-example `Circus Launchpad v1.1.2 (4)`.
+example `Circus Launchpad v1.1.3 (5)`.
 
 1. **Airplane mode and Do Not Disturb**: no calls, notifications or system vibrations during the show.
 2. **Battery**: fully charged, or plugged in. A USB-C adapter with pass-through charging keeps the audio output free.
