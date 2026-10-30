@@ -1,6 +1,6 @@
 # Circus Launchpad — Specifiche di prodotto
 
-> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 completato** (§15.7): **v1.1.0** con la sync su Google Drive. **v1.1.1**: un buffer decodificato per sample, condiviso tra i pad (§8). **v1.1.2**: versione dell'app in fondo alla CHECKLIST. **v1.1.3**: le finestre scorrono anche con il trascinamento lento.
+> **Stato:** v0.3 — specifiche approvate il 2026-10-27; **M0 superato** (§15.1), **M1 completato** (§15.2), **M2 completato** (§15.3), **M3 completato** (§15.4), **M4 completato** (§15.5), **M5 completato** (§15.6): **v1.0.0 rilasciata** il 2026-10-28. **M6 completato** (§15.7): **v1.1.0** con la sync su Google Drive. **v1.1.1**: un buffer decodificato per sample, condiviso tra i pad (§8). **v1.1.2**: versione dell'app in fondo alla CHECKLIST. **v1.1.3**: le finestre scorrono anche con il trascinamento lento. **v1.1.4**: barra che non manda fuori schermo `DONE` e `STOP`, Bluetooth in blu, uscita aggiornata allo spegnimento del Bluetooth, finestra `AUDIO OUTPUT` (§11, D-37).
 > **Fonte di verità.** Questo documento raccoglie tutte le decisioni prese in fase di definizione. Chi
 > riprende il lavoro (persona o agente) parte da qui: se il codice e questo documento divergono, si chiede
 > all'utente quale dei due aggiornare — non si "corregge" in silenzio né l'uno né l'altro.
@@ -404,13 +404,21 @@ latenza, cadute di connessione). L'altoparlante del telefono è escluso (D-02, D
 
 L'app:
 - mostra nella barra l'**uscita attuale** (`USB-C`, `CAVO`, `ALTOPARLANTE`, `BLUETOOTH`), con pallino verde
-  per le uscite cablate, ambra per l'altoparlante e rosso per il Bluetooth;
+  per le uscite cablate, ambra per l'altoparlante e blu per il Bluetooth (`#0082FC`, il blu del marchio): è
+  un avviso, il rosso resta per stop ed errori;
 - se l'uscita è **Bluetooth**, mostra un **avviso** persistente nella barra ("latenza alta");
 - se l'uscita **cambia durante l'uso** (es. si stacca il cavo), lo segnala in modo evidente. **Non ferma** l'audio;
+- **toccando l'indicatore** (in PLAY e in EDIT) si apre la finestra `AUDIO OUTPUT`: tabellina delle quattro uscite
+  (USB-C, cavo, altoparlante, Bluetooth) con latenza e uso consigliato, l'uscita attuale evidenziata con il nome del
+  dispositivo, e la nota che l'uscita la sceglie Android e non l'app (D-37). Nessun segnale grafico che si possa
+  toccare: lo dicono README e CHECKLIST;
 - fonte dati: **modulo nativo locale** (Expo module in Kotlin, `modules/`) con `AudioManager.getDevices` +
   `AudioDeviceCallback`; su API 33+ `getAudioDevicesForAttributes(USAGE_MEDIA)` per l'uscita effettiva, sotto
   API 33 euristica di priorità (USB > cablata > Bluetooth > altoparlante). `react-native-audio-api` **non basta**:
   su Android `currentOutputs` è sempre vuoto e `routeChange` non viene emesso (verificato in M0, D-25).
+- dopo ogni dispositivo collegato o staccato l'uscita si **rilegge a 0,3, 1,5 e 3 s**: spegnendo il Bluetooth del
+  Pixel 7a la musica resta sul Bluetooth per ~1,1 s dopo l'evento, e con una sola lettura a 0,3 s la barra poteva
+  restare su `BLUETOOTH` (corretto nella 1.1.4).
 
 ## 12. Protezioni dal vivo
 
@@ -621,8 +629,8 @@ contatto e il suono. Su 10 prove si riportano media e massimo.
 
 - **Uscita audio**: modulo nativo locale `modules/audio-output` (Kotlin, `AudioDeviceCallback` e
   `getAudioDevicesForAttributes` su API 33+), hook `src/play/useAudioOutput.ts`, indicatore in barra: verde per
-  USB-C e cavo, ambra per l'altoparlante, rosso per `BLUETOOTH · HIGH LATENCY`; un cambio si evidenzia per 6 s
-  (`OUTPUT → …`). Verificato su device dall'utente con altoparlante, adattatore USB-C e Bluetooth.
+  USB-C e cavo, ambra per l'altoparlante, blu per `BLUETOOTH · HIGH LATENCY` (era rosso fino alla 1.1.3); un cambio
+  si evidenzia per 6 s (`OUTPUT → …`). Toccandolo si apre `AUDIO OUTPUT` (`src/play/OutputSheet.tsx`). Verificato su device dall'utente con altoparlante, adattatore USB-C e Bluetooth.
 - **Icona** (D-32), **checklist da palco** in app (EDIT → `CHECKLIST`) e nel README, istruzioni di installazione.
 - **Versione 1.0.0** (versionCode 1), APK firmato con il keystore di release creato dall'utente (verificato con
   `apksigner`).
@@ -750,4 +758,5 @@ oltre i 12 pad · colori dei pad personalizzabili · comando reverse dal vivo.
 | D-34 | Interfaccia tutta in inglese (prima era mista). Le etichette italiane citate nelle sezioni precedenti corrispondono a: CARICA/SOSTITUISCI → LOAD/REPLACE, ASCOLTA → PREVIEW, SVUOTA → CLEAR, CONFERMA → CONFIRM, MODALITÀ → MODE, DIREZIONE AVANTI → DIRECTION FWD, AL RITOCCO RIPARTE/IGNORA → ON RETRIGGER RESTART/IGNORE, NORMALIZZA → NORMALIZE, CORREZIONE → TRIM, VIBRAZIONE → HAPTICS, FINE → DONE, VOCI → VOICES, CAVO → WIRED, ALTOPARLANTE → SPEAKER, TIENI PREMUTO PER FERMARE → HOLD TO STOP, DUPLICA/ESPORTA/ELIMINA → DUPLICATE/EXPORT/DELETE, NUOVO SET → NEW SET, IMPORTA DA FILE → IMPORT FROM FILE, CHECKLIST DA PALCO → STAGE CHECKLIST. Numeri con il punto decimale. Anche il README (pubblico) è in inglese, come guida d'uso con screenshot in `docs/screenshots/`. Commenti nel codice, spec e AGENTS restano in italiano. |
 | D-35 | Lo stream audio parte all'apertura dell'app e resta sempre attivo, anche senza pad in riproduzione. La libreria si riprende da sola da una disconnessione (cambio di uscita, app congelata in background, stream esclusivo preso da un'altra app) solo se lo stream sta girando: uno stream aperto ma mai avviato restava muto per sempre (bug trovato il 2026-10-28 dopo il selettore di file). In più un watchdog ricrea il contesto se il clock audio resta fermo per 2 s; le voci in corso si perdono, i buffer restano. |
 | D-36 | Sync dei set su Google Drive (§10.2): backup e stessi set su più telefoni con un solo account; cartella visibile `Circus Launchpad Backup`, scope `drive.file`, file riconosciuti dall'ID e non dal nome. Si sincronizza all'apertura, all'uscita da EDIT e con `SYNC NOW`, mai in PLAY; solo Wi-Fi di default. Conflitto → si tengono entrambe le versioni (`… (CONFLICT)`); cancellazioni propagate con il cestino di Drive; prima sync per unione; il set attivo cambiato altrove si aggiorna solo fuori da PLAY. Pulsante `⟳ SYNC` in EDIT con le frecce che girano durante la sync, finestra SYNC separata dalla finestra SET. |
+| D-37 | Toccando l'indicatore dell'uscita si apre `AUDIO OUTPUT` (§11), anche in PLAY: l'uscita si controlla al soundcheck, la scritta è lontana dai pad e la finestra non ferma l'audio. Tabella di tutte le uscite invece della sola attuale: le alternative si leggono dal confronto. Indicatore senza bordo né `ⓘ` (la barra è già stretta): lo spiegano README e CHECKLIST. Bluetooth in blu del marchio (`#0082FC`) e non in rosso: è un avviso, il rosso è per stop ed errori. |
 | D-26 | Input con un'unica superficie touch e hit-test (niente Pressable per i pad, niente gesture-handler). |

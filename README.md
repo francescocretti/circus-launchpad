@@ -137,21 +137,23 @@ The top bar always shows where the sound is going:
 | `● USB-C` (green) | USB-C audio adapter or USB interface. |
 | `● WIRED` (green) | Wired headphones or line out. |
 | `● SPEAKER` (amber) | The phone's own speaker: fine for testing, not for the stage. |
-| `● BLUETOOTH · HIGH LATENCY` (red) | Bluetooth adds too much delay to play in time. Don't use it live. |
+| `● BLUETOOTH · HIGH LATENCY` (blue) | Bluetooth adds too much delay to play in time. Don't use it live. |
 
 When the output changes, for example when you plug in the cable, the indicator flashes `OUTPUT → …` for a few seconds.
+Tap the indicator to see what each output means and which ones to use on stage.
 
 ## Stage checklist
 
 ![The stage checklist](docs/screenshots/checklist.png)
 
 You'll also find it in the app, in EDIT → `CHECKLIST`. The bottom of that window shows the app version, for
-example `Circus Launchpad v1.1.3 (5)`.
+example `Circus Launchpad v1.1.4 (6)`.
 
 1. **Airplane mode and Do Not Disturb**: no calls, notifications or system vibrations during the show.
 2. **Battery**: fully charged, or plugged in. A USB-C adapter with pass-through charging keeps the audio output free.
 3. **System volume at maximum**: set the level at the mixer, not on the phone.
-4. **Wired output**: the bar must show `● USB-C` or `● WIRED` in green. Never Bluetooth.
+4. **Wired output**: the bar must show `● USB-C` or `● WIRED` in green. Never Bluetooth. Tap the indicator to see all
+   the outputs.
 5. **App pinning** (Settings → Security → App pinning), so you can't leave the app by mistake.
 6. **Right set**: check the set name in the bar.
 7. **Test every pad** at soundcheck, once each, with the engineer at the mixer.

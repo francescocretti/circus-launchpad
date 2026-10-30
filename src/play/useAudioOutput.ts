@@ -11,7 +11,9 @@ export function useAudioOutput() {
 
   useEffect(() => {
     const sub = addOutputListener((o) => {
-      if (o.kind !== last.current.kind || o.name !== last.current.name) setChangedAt(Date.now());
+      // Il modulo nativo rilegge più volte dopo ogni cambio: le letture uguali si ignorano.
+      if (o.kind === last.current.kind && o.name === last.current.name) return;
+      setChangedAt(Date.now());
       last.current = o;
       setOutput(o);
     });

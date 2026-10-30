@@ -17,6 +17,7 @@ export const colors = {
   dangerBg: '#3a1512',
   edit: '#f2a437',
   ok: '#9fd18b',
+  bluetooth: '#0082fc', // blu ufficiale del marchio Bluetooth: avviso, non errore
 };
 
 export const PAD_COLORS = [

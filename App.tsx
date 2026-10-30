@@ -14,6 +14,7 @@ import { tap } from './src/haptics';
 import { decodedMB } from './src/model/pads';
 import { engine, usePadSet } from './src/model/usePadSet';
 import { PadGrid } from './src/play/PadGrid';
+import { OutputSheet } from './src/play/OutputSheet';
 import { TopBar } from './src/play/TopBar';
 import { currentAccount } from './src/sync/auth';
 import { SyncSheet } from './src/sync/SyncSheet';
@@ -40,6 +41,7 @@ export default function App() {
   const [selected, setSelected] = useState<number | null>(null);
   const [setsOpen, setSetsOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
+  const [outputOpen, setOutputOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [setsVersion, setSetsVersion] = useState(0);
@@ -139,6 +141,7 @@ export default function App() {
         onOpenSets={() => setSetsOpen(true)}
         onOpenChecklist={() => setChecklistOpen(true)}
         onOpenSync={() => setSyncOpen(true)}
+        onOpenOutput={() => setOutputOpen(true)}
         syncBusy={sync.busy}
         syncError={!!sync.error}
         notice={notice}
@@ -176,6 +179,7 @@ export default function App() {
         refreshKey={setsVersion}
       />
       <ChecklistSheet visible={checklistOpen} onClose={() => setChecklistOpen(false)} />
+      <OutputSheet visible={outputOpen} output={output} onClose={() => setOutputOpen(false)} />
       <SyncSheet visible={syncOpen} sync={sync} onClose={() => setSyncOpen(false)} />
     </View>
   );

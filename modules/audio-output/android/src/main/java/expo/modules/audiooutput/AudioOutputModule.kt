@@ -37,8 +37,9 @@ class AudioOutputModule : Module() {
   }
 
   private fun notifyChange() {
-    // Il routing si assesta qualche istante dopo l'evento: si rilegge con un piccolo ritardo.
-    Handler(Looper.getMainLooper()).postDelayed({ sendEvent(CHANGE_EVENT, current()) }, 300)
+    // Il routing si assesta dopo l'evento: spegnendo il Bluetooth del Pixel 7a la musica resta sul Bluetooth per
+    // ~1,1 s. Si rilegge più volte; le letture uguali non evidenziano niente (useAudioOutput).
+    for (ms in REREAD_MS) Handler(Looper.getMainLooper()).postDelayed({ sendEvent(CHANGE_EVENT, current()) }, ms)
   }
 
   private fun current(): Map<String, Any?> {
@@ -62,6 +63,7 @@ class AudioOutputModule : Module() {
 
   companion object {
     const val CHANGE_EVENT = "onChange"
+    val REREAD_MS = listOf(300L, 1500L, 3000L)
     val PRIORITY = listOf("usb", "wired", "bluetooth", "speaker")
 
     fun kindOf(type: Int?): String = when (type) {

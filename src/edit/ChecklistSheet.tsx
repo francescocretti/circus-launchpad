@@ -7,7 +7,7 @@ const ITEMS: [string, string][] = [
   ['Airplane mode and Do Not Disturb', 'No calls, notifications or system vibrations during the show.'],
   ['Battery', 'Fully charged, or plugged in (a USB-C adapter with pass-through charging keeps the output free).'],
   ['System volume at maximum', 'Set the level at the mixer, not on the phone.'],
-  ['Wired output', 'The bar must show ● USB-C or ● WIRED in green. Never Bluetooth: too much latency.'],
+  ['Wired output', 'The bar must show ● USB-C or ● WIRED in green. Never Bluetooth: too much latency. Tap the indicator to see all the outputs.'],
   ['App pinning', 'Settings → Security → App pinning: keeps you from leaving the app by mistake.'],
   ['Right set', 'Check the set name in the bar.'],
   ['Test every pad', 'At soundcheck, each pad once, with the engineer at the mixer.'],

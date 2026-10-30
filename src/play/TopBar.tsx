@@ -22,6 +22,8 @@ interface Props {
   onOpenSets: () => void;
   onOpenChecklist: () => void;
   onOpenSync: () => void;
+  /** Tocco sull'indicatore dell'uscita: apre la spiegazione delle uscite. */
+  onOpenOutput: () => void;
   /** Sync in corso e ultimo esito (spec §10.2). */
   syncBusy: boolean;
   syncError: boolean;
@@ -31,7 +33,7 @@ interface Props {
   onStopAll: () => void;
 }
 
-export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onOpenSync, syncBusy, syncError, notice, onDone, onStopAll }: Props) {
+export function TopBar({ editing, setName, activeCount, startup, haptics, output, outputChanged, onToggleHaptics, onEdit, onOpenSets, onOpenChecklist, onOpenSync, onOpenOutput, syncBusy, syncError, notice, onDone, onStopAll }: Props) {
   return (
     <View style={styles.bar}>
       {editing ? (
@@ -50,13 +52,17 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, output
       {editing ? (
         <Pressable onPress={onOpenSets} style={[styles.set, styles.setButton]} accessibilityLabel="Manage sets">
           <Text style={styles.muted}>SET</Text>
-          <Text style={styles.setName}>{setName}</Text>
+          <Text style={[styles.setName, styles.shrink]} numberOfLines={1}>
+            {setName}
+          </Text>
           <Text style={[styles.setName, { color: colors.edit }]}>▾</Text>
         </Pressable>
       ) : (
         <View style={styles.set}>
           <Text style={styles.muted}>SET</Text>
-          <Text style={styles.setName}>{setName}</Text>
+          <Text style={[styles.setName, styles.shrink]} numberOfLines={1}>
+            {setName}
+          </Text>
           {syncBusy && (
             <View style={{ alignSelf: 'center' }}>
               <SyncIcon busy size={11} />
@@ -71,7 +77,7 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, output
           LOADING… {startup.done}/{startup.total}
         </Text>
       )}
-      <OutputIndicator output={output} changed={outputChanged} />
+      <OutputIndicator output={output} changed={outputChanged} onPress={onOpenOutput} />
       {editing ? (
         <>
           <Pressable onPress={onOpenChecklist} style={styles.outlineBtn}>
@@ -101,7 +107,7 @@ export function TopBar({ editing, setName, activeCount, startup, haptics, output
   );
 }
 
-const OUTPUT_LABEL: Record<OutputKind, string> = {
+export const OUTPUT_LABEL: Record<OutputKind, string> = {
   usb: 'USB-C',
   wired: 'WIRED',
   bluetooth: 'BLUETOOTH · HIGH LATENCY',
@@ -109,28 +115,33 @@ const OUTPUT_LABEL: Record<OutputKind, string> = {
   other: 'OTHER',
   unknown: '—',
 };
-const OUTPUT_COLOR: Record<OutputKind, string> = {
+export const OUTPUT_COLOR: Record<OutputKind, string> = {
   usb: colors.ok,
   wired: colors.ok,
-  bluetooth: colors.danger,
+  bluetooth: colors.bluetooth,
   speaker: colors.edit,
   other: colors.textMuted,
   unknown: colors.textMuted,
 };
 
-/** Uscita audio (spec §11): verde cablata, ambra altoparlante, rosso Bluetooth; un cambio si evidenzia. */
-function OutputIndicator({ output, changed }: { output: AudioOutput; changed: boolean }) {
+/** Uscita audio (spec §11): verde cablata, ambra altoparlante, blu Bluetooth; un cambio si evidenzia. */
+function OutputIndicator({ output, changed, onPress }: { output: AudioOutput; changed: boolean; onPress: () => void }) {
   const color = OUTPUT_COLOR[output.kind];
   return (
-    <View
+    <Pressable
+      onPress={onPress}
       style={[styles.output, changed && { backgroundColor: color }]}
+      accessibilityRole="button"
       accessibilityLabel={`Audio output: ${OUTPUT_LABEL[output.kind]}${output.name ? `, ${output.name}` : ''}`}
     >
       <View style={[styles.outputDot, { backgroundColor: changed ? colors.ink : color }]} />
-      <Text style={[styles.btnText, { color: changed ? colors.ink : output.kind === 'bluetooth' ? colors.danger : colors.text }]}>
+      <Text
+        style={[styles.btnText, styles.shrink, { color: changed ? colors.ink : output.kind === 'bluetooth' ? colors.bluetooth : colors.text }]}
+        numberOfLines={1}
+      >
         {changed ? `OUTPUT → ${OUTPUT_LABEL[output.kind]}` : OUTPUT_LABEL[output.kind]}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -201,7 +212,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.edit,
     color: colors.ink,
   },
-  set: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  // Se la barra non basta si accorciano solo nome del set e uscita: i pulsanti restano interi (DONE e STOP mai fuori
+  // schermo). Prima il nome del set, fino alla larghezza minima, poi l'uscita.
+  set: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 100, minWidth: 110 },
+  shrink: { flexShrink: 1 },
   setButton: { borderWidth: 1, borderColor: colors.edit, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 3 },
   muted: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.9, color: colors.textMuted },
   setName: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 0.9, color: colors.text },
@@ -209,7 +223,7 @@ const styles = StyleSheet.create({
   syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   doneBtn: { backgroundColor: colors.edit, borderColor: colors.edit },
   btnText: { fontFamily: fonts.monoBold, fontSize: 11, letterSpacing: 1.3, color: colors.text },
-  output: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, height: 24, borderRadius: 4 },
+  output: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, height: 24, borderRadius: 4, flexShrink: 1 },
   outputDot: { width: 7, height: 7, borderRadius: 4 },
   stop: {
     height: 24,
